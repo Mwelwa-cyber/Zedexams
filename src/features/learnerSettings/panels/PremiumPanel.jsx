@@ -14,11 +14,9 @@
 //     monthly-only Premium feature would be false twice over.
 
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useSubscription } from '../../../hooks/useSubscription'
 import { PLANS } from '../../../engines/payment-engine/subscriptionConfig'
-import { platformMayShowPrice } from '../../../services/entitlements/platformPrice'
 import { UpgradeModal } from '../../subscription'
 import { Panel, Section, Note } from '../components/ui'
 
@@ -71,31 +69,14 @@ export default function PremiumPanel({ section }) {
     setShowUpgrade(true)
   }
 
-  // The Android build never shows a price to a child; on the web a learner
-  // sees it and a parent pays. `platformMayShowPrice` fails closed — a learner
-  // is under-18 unless the profile positively says otherwise — and the
-  // `!!userProfile` prefix is load-bearing: platformMayShowPrice reads a MISSING
-  // profile as an anonymous visitor, which is right for a public marketing
-  // page and wrong on a learner's own settings screen. Same shape as
-  // AccountPanel.jsx.
-  //
-  // The panel is reachable from the settings nav, so it renders the hand-off
-  // rather than nothing: a blank screen a child can navigate to is its own
-  // defect, and /ask-a-grown-up is where the request actually goes.
-  if (!userProfile || !platformMayShowPrice(userProfile)) {
+  // No profile yet means there is nothing to sell against; show a quiet
+  // placeholder rather than a blank panel. Everyone else sees the plans — on
+  // the web a parent pays with their own number, and in the Android build
+  // Google Play's sheet owns the price.
+  if (!userProfile) {
     return (
       <Panel section={section}>
-        <Section
-          title="Plans"
-          hint="A grown-up looks after plans and payments for your account."
-        >
-          <Note tone="accent">
-            Ask a grown-up if you need more. They can unlock everything for you.
-          </Note>
-          <Link className="lset-btn lset-btn--gold" to="/ask-a-grown-up">
-            Ask a grown-up
-          </Link>
-        </Section>
+        <Section title="Plans" hint="Your plans will appear once your account has loaded." />
       </Panel>
     )
   }

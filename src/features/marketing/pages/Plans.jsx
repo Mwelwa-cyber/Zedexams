@@ -14,15 +14,6 @@ import { PLAN_PRICES } from '../../../config/teacherPlanPricing'
 // charge for — a hard-coded "K15" on a marketing page is a number nobody
 // reconciles until a learner taps it and pays the wrong amount.
 import { getPlan } from '../../../config/plans'
-// The age band, from the SAME resolver every gate in the app uses. Not a
-// re-derived `profile.isMinor` check: `resolveAgeBand` is where the
-// fail-closed rule lives (a learner is under-18 unless `isMinor === false`
-// positively says otherwise), and a second copy of that default is exactly
-// how a surface ends up disagreeing with the rest of the product about
-// whether it is talking to a child. planState.js is pure — no React, no
-// Firebase — so this costs the marketing chunk nothing but the function.
-import { resolveAgeBand, AGE_BAND } from '../../../services/entitlements/planState'
-import GuardianPricingNotice from '../components/GuardianPricingNotice'
 import { isNativePlatform } from '../../../utils/runtime'
 
 const UpgradeModal = lazy(() => import('../../subscription').then(m => ({ default: m.UpgradeModal })))
@@ -351,7 +342,7 @@ function SectionTag({ children }) {
 }
 
 export default function Plans() {
-  const { currentUser, isTeacher, userProfile } = useAuth()
+  const { currentUser, isTeacher } = useAuth()
   const navigate = useNavigate()
   const [billing, setBilling] = useState('monthly')
   const [showUpgrade, setShowUpgrade] = useState(null) // 'pro' | 'max' | null
@@ -359,28 +350,7 @@ export default function Plans() {
   // price literals, no payment-method badges (Play policy).
   const native = isNativePlatform()
 
-  /**
-   * Inside the Android build, a learner we know to be (or must assume to be)
-   * under 18 sees no price. On the web they do, and a parent pays: the checkout
-   * asks for the parent's mobile-money number.
-   *
-   * Gated on being SIGNED IN, deliberately. `resolveAgeBand` fails closed, so
-   * it reads a visitor with no profile as under-18 — correct for a locked
-   * feature, wrong here: it would blank the public pricing page for every
-   * signed-out parent and teacher, which is most of its audience. We withhold
-   * when we have an ACCOUNT that is or might be a child; an anonymous visitor
-   * is not one, has no account to buy against, and is served the normal page.
-   *
-   * Teachers, parents and admins resolve to `adult` inside the resolver, so
-   * they are unaffected without a role check here.
-   */
-  const isMinorLearner =
-    native && Boolean(currentUser) && resolveAgeBand(userProfile) === AGE_BAND.UNDER_18
   const faqItems = native ? FAQ_NATIVE : FAQ
-
-  // Before anything priced is constructed. Every hook above this line runs
-  // unconditionally, so the early return is safe under the rules of hooks.
-  if (isMinorLearner) return <GuardianPricingNotice />
 
   function handleFreeCta() {
     navigate(currentUser ? '/' : '/register')
@@ -399,35 +369,16 @@ export default function Plans() {
   }
 
   /**
-   * Where a learner rung's CTA goes.
-   *
-   * On the web this is reached by adults AND by under-18 learners, whose
-   * checkout asks for a parent's number. Inside the Android build
-   * `isMinorLearner` returned above, so a minor never sees the rung this fires
-   * from; `MySubscriptionRoute` also sends them to /ask-a-grown-up before the
-   * page renders (see its `platformMayShowPrice` guard). The gate above is
-   * still the one that matters there — a page that never constructs a price is
-   * a stronger guarantee than a page that redirects away from one — and the
-   * rule stands: do not route a minor at a checkout on the assumption that
-   * something downstream will catch it.
-   *
-   * Still deliberately not the UpgradeModal the teacher cards open: the
-   * learner's own subscription surface is where a learner manages a plan, and
-   * a second checkout entry point on a marketing page is a second thing to
-   * keep age-correct. Anonymous visitors register first, which is where an
+   * Where a learner rung's CTA goes: the learner's own subscription page, for
+   * adults and under-18 learners alike. On the web its checkout asks for a
+   * parent's mobile-money number; inside the Android build it opens Google
+   * Play's purchase sheet. Anonymous visitors register first, which is where an
    * age is captured at all.
    */
   function handleLearnerCta() {
     navigate(currentUser ? '/my-subscription' : '/register?intent=upgrade&tier=learner')
   }
 
-  // NOTE: this branch arrived with a second age gate here — a
-  // `mayShowPrice` check redirecting to /ask-a-grown-up. It is deleted
-  // rather than kept alongside `isMinorLearner` above, which lands the same
-  // decision for every input and lands it EARLIER, before anything priced is
-  // constructed. Two gates for one rule is how they drift: the day somebody
-  // narrows one, the other keeps the page looking correct in review while
-  // the guarantee has already moved.
   const upgradePlanIds = showUpgrade
     ? [`${showUpgrade}_monthly`, `${showUpgrade}_yearly`]
     : []

@@ -3,7 +3,6 @@ import { useAuth } from '../../../contexts/AuthContext'
 // Deep import, not the barrel: `services/entitlements/index.js` re-exports
 // guardianRequest, which pulls firebase/config — a Firebase edge on a
 // four-line router that only needs one pure predicate.
-import { platformMayShowPrice } from '../../../services/entitlements/platformPrice'
 import MySubscriptionPage from './MySubscriptionPage'
 
 /**
@@ -38,17 +37,5 @@ export default function MySubscriptionRoute() {
   // PARENT's own document and charged for nothing usable. /family is the
   // closed page, which carries the sign-out button.
   if (!isAdmin && userProfile?.role === 'parent') return <Navigate to="/family" replace />
-  // Inside the Android build, a learner who is not positively an adult never
-  // reaches the plan ladder or the checkout — Play's Families policy. (On the
-  // web they do: the checkout asks for a parent's number.) This is the
-  // ARRIVAL guard rather than the offer
-  // guard: the banners and cards already route the tap elsewhere, but an
-  // old notification action, a bookmark or a shared link all land here,
-  // and each of those would otherwise open a price list. `platformMayShowPrice`
-  // treats a missing profile as an anonymous visitor, not as a child —
-  // this route is behind ProtectedRoute, so there is always one.
-  if (!isAdmin && !platformMayShowPrice(userProfile)) {
-    return <Navigate to="/ask-a-grown-up" replace />
-  }
   return <MySubscriptionPage />
 }

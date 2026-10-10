@@ -9,7 +9,6 @@ import { ArrowRight, X } from '../../../shared/components/icons'
 import { BenefitChecklist, PlanPricingCards, TrustRow } from './PremiumUpgradeUI'
 import { useAuth } from '../../../contexts/AuthContext'
 import { resolveAgeBand } from '../../../services/entitlements/planState'
-import { platformMayShowPrice } from '../../../services/entitlements/platformPrice'
 
 const UpgradeModal = lazy(() => import('./UpgradeModal'))
 
@@ -70,10 +69,10 @@ export default function QuizLimitPopup() {
 
   useEffect(() => paywall.subscribe(setState), [])
 
-  // No price reaches a child in the Android build; on the web a parent pays.
-  // Fails closed, and `!!userProfile` is load-bearing — platformMayShowPrice reads a MISSING profile as an anonymous
-  // visitor, which is right for marketing and wrong for a learner runner.
-  const canBuy = !!userProfile && platformMayShowPrice(userProfile)
+  // Everyone with a profile can buy: on the web a parent pays with their own
+  // number, and in the Android build Google Play's sheet owns the price. A
+  // missing profile is not a learner, so it gets no plan cards.
+  const canBuy = !!userProfile
   const open = !!state && state.reason === REASON
   const ctx = state?.ctx || {}
   const limit = ctx.limit || 30
@@ -117,12 +116,9 @@ export default function QuizLimitPopup() {
       via: planId ? 'plan-card' : 'primary',
       age_band: userProfile ? resolveAgeBand(userProfile) : null,
     })
-    // Defence in depth. Nothing should call this for a child — the plan cards
-    // are not rendered and the CTA routes elsewhere — but a checkout is not a
-    // thing to leave one branch away from a twelve-year-old.
     if (!canBuy) {
       paywall.hide()
-      navigate('/ask-a-grown-up')
+      navigate('/my-subscription')
       return
     }
     setUpgradePlanId(planId || 'monthly')
@@ -183,9 +179,6 @@ export default function QuizLimitPopup() {
         <div className="px-5 py-4">
           <BenefitChecklist items={QUIZ_BENEFITS} className="mb-3.5" />
 
-          {/* A plan picker IS an offer, so a child gets none of it — not the
-              cards with prices hidden. The benefit list above stays: telling a
-              learner what Premium does is not selling it to them. */}
           {canBuy && (
             <PlanPricingCards
               planIds={['weekly', 'monthly']}
@@ -202,7 +195,7 @@ export default function QuizLimitPopup() {
               onClick={() => openUpgrade(null)}
               className="animate-premium-glow flex w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2.5 text-sm font-black text-white transition-transform hover:scale-[1.02] active:scale-95"
             >
-              {canBuy ? 'Continue Learning' : 'Ask a grown-up'}
+              Continue Learning
               <Icon as={ArrowRight} size="xs" />
             </button>
             <button

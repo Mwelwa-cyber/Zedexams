@@ -1,10 +1,10 @@
 /**
  * /pricing — the under-18 gate.
  *
- * The rule depends on the platform. In the ANDROID BUILD an under-18 learner is
- * never shown a price or a pay button (Play's Families policy). On the WEB they
- * are shown the price, because a parent pays: the checkout asks for the
- * parent's mobile-money number. `useUnlockFlow` applies the same split to
+ * The same page for every learner. In the ANDROID BUILD it prints no Kwacha at
+ * all (Google Play's sheet owns the price) and the CTA goes to /my-subscription;
+ * on the WEB it shows the price, because a parent pays: the checkout asks for
+ * the parent's mobile-money number. There is no guardian-notice page any more. `useUnlockFlow` applies the same split to
  * in-app locks; /pricing is a marketing page that holds four separate sets of
  * figures (learner rungs, teacher cards, the "Or K590 / year" notes, the FAQ's
  * K25 answer), so the Android half is asserted on the whole rendered page.
@@ -52,49 +52,40 @@ beforeEach(() => {
   mockAuth = { currentUser: null, isTeacher: false, userProfile: null }
 })
 
-describe('/pricing — under-18 learners see no price in the Android build', () => {
+describe('/pricing — inside the Android build every learner sees the same page, with no Kwacha', () => {
   beforeEach(() => { mockNative = true })
 
-  it('shows a minor the guardian notice instead of the pricing page', () => {
+  it('no longer swaps a minor onto a guardian notice', () => {
     mockAuth = { currentUser: signedIn, isTeacher: false, userProfile: { role: 'learner', isMinor: true } }
     renderPage()
-    expect(screen.getByRole('heading', { name: /Ask a parent or guardian/i })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Get Weekly/i })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Go Pro/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /Ask a parent or guardian/i })).toBeNull()
+    // The learner CTA is the one every other learner gets.
+    expect(screen.getByRole('button', { name: /Get Weekly/i })).toBeInTheDocument()
   })
 
-  it('renders NO kwacha figure anywhere for a minor', () => {
+  it('renders NO kwacha figure anywhere — Google Play owns the price in the Android build', () => {
+    // Covers every source on the page at once: learner rungs, teacher cards,
+    // the "Or K590 / year" notes, and the FAQ's K25 answer.
+    for (const profile of [{ role: 'learner', isMinor: true }, { role: 'learner' }, { role: 'learner', isMinor: false }]) {
+      mockAuth = { currentUser: signedIn, isTeacher: false, userProfile: profile }
+      const { unmount } = renderPage()
+      expect(kwachaOnPage()).toEqual([])
+      unmount()
+    }
+  })
+
+  it('sends a minor\'s learner CTA to /my-subscription, where Google Play\'s sheet opens', () => {
     mockAuth = { currentUser: signedIn, isTeacher: false, userProfile: { role: 'learner', isMinor: true } }
     renderPage()
-    // Covers all four sources at once: learner rungs, teacher cards, the
-    // "Or K590 / year" notes, and the FAQ's K25 answer.
-    expect(kwachaOnPage()).toEqual([])
+    screen.getByRole('button', { name: /Get Weekly/i }).click()
+    expect(navigate).toHaveBeenCalledWith('/my-subscription')
   })
 
-  it('fails CLOSED — a learner whose age we do not know is treated as a minor', () => {
-    // isMinor absent. resolveAgeBand only calls a learner an adult on an
-    // explicit `isMinor === false`; not knowing must not show a price.
-    mockAuth = { currentUser: signedIn, isTeacher: false, userProfile: { role: 'learner' } }
-    renderPage()
-    expect(screen.getByRole('heading', { name: /Ask a parent or guardian/i })).toBeInTheDocument()
-    expect(kwachaOnPage()).toEqual([])
-  })
-
-  it('never offers a minor a route to a checkout', () => {
-    // /my-subscription opens UpgradeModal with no age check of its own, so a
-    // link to it here would relocate the leak rather than close it.
+  it('still describes what Premium gives', () => {
     mockAuth = { currentUser: signedIn, isTeacher: false, userProfile: { role: 'learner', isMinor: true } }
     renderPage()
-    const hrefs = [...document.querySelectorAll('a')].map((a) => a.getAttribute('href'))
-    expect(hrefs).not.toContain('/my-subscription')
-    expect(hrefs).not.toContain('/pricing')
-  })
-
-  it('still describes what Premium gives, so the page is worth showing', () => {
-    mockAuth = { currentUser: signedIn, isTeacher: false, userProfile: { role: 'learner', isMinor: true } }
-    renderPage()
-    expect(screen.getByText(/Unlimited quizzes/i)).toBeInTheDocument()
-    expect(screen.getByText(/Exam mode/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/Unlimited quizzes/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Exam mode/i).length).toBeGreaterThan(0)
   })
 })
 

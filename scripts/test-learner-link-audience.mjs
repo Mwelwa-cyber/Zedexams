@@ -104,7 +104,6 @@ const GATED = new Map([
   ['src/app/guards/LearnerSetupGate.jsx', { needs: null, why: 'runs INSIDE LearnerOnlyRoute; /setup is the wizard it redirects to' }],
   ['src/shared/components/ComingSoon.jsx', { needs: null, why: 'rendered only by LessonLibrary and QuizList, both LearnerOnlyRoute pages' }],
   ['src/components/layout/Navbar.jsx', { needs: 'canOpenLearnerRoutes', why: 'the /search link is gated (!isAdmin && !isTeacher); the menu and tab bar are covered by test:navbar-audience' }],
-  ['src/features/marketing/components/GuardianPricingNotice.jsx', { needs: null, why: 'Plans renders it only `if (isMinorLearner)` — a learner, for whom /dashboard is correct' }],
   ['src/features/papers/pages/PastPapersHub.jsx', { needs: 'canOpenLearnerRoutes', why: 'public hub: the exam-timetable card renders only for an account that can open /timetable' }],
 ])
 
