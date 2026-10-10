@@ -24,7 +24,8 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { PLAN_STATUS, useEntitlements } from '../../../services/entitlements'
-import { isReminderSuppressedPath } from '../lib/reminderVisibility'
+import { isReminderSuppressedPath } from '../../../shared/utils/reminderVisibility'
+import { useReminderHostClaimed } from '../../../shared/utils/reminderHost'
 
 const DISMISS_KEY = 'zedexams:graceRibbonDismissed'
 
@@ -36,8 +37,11 @@ export default function GraceRibbon() {
   const { planState } = useEntitlements()
   const { pathname } = useLocation()
   const [dismissed, setDismissed] = useState(dismissedThisSession)
+  const shellOwnsReminder = useReminderHostClaimed()
 
   if (dismissed) return null
+  // Drawn inside the learner shell's page column instead (reminderHost.js).
+  if (shellOwnsReminder) return null
   if (planState?.status !== PLAN_STATUS.GRACE) return null
   // Marketing, auth and immersive routes: the same suppression list the
   // subscription status strip uses, so the two bars cannot appear on

@@ -3,7 +3,8 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useSubscriptionReminder } from '../../../hooks/useSubscriptionReminder'
 import { SUB_STATUS } from '../../../engines/payment-engine/subscriptionStatus'
-import { isReminderSuppressedPath } from '../lib/reminderVisibility'
+import { isReminderSuppressedPath } from '../../../shared/utils/reminderVisibility'
+import { useReminderHostClaimed } from '../../../shared/utils/reminderHost'
 import Icon from '../../../shared/components/Icon'
 import { X } from '../../../shared/components/icons'
 
@@ -26,11 +27,15 @@ export default function SubscriptionStatusBanner() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { status, shouldRemind, isExpired } = useSubscriptionReminder()
+  const shellOwnsReminder = useReminderHostClaimed()
   const [dismissed, setDismissed] = useState(() => {
     try { return sessionStorage.getItem(SESSION_DISMISS_KEY) === '1' } catch { return false }
   })
 
   if (!userProfile) return null
+  // A shell that lays out its own chrome (the learner shell) draws this inside
+  // its page column, where its sidebar cannot cover it. See reminderHost.js.
+  if (shellOwnsReminder) return null
   if (!shouldRemind) return null
   if (dismissed) return null
   if (isReminderSuppressedPath(pathname)) return null

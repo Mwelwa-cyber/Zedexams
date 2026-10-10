@@ -41,7 +41,8 @@
  *
  * Four had no consumer outside this directory: `pendingPremiumAction`,
  * `lockedFeature`, `reminderVisibility`, `usageReminderLogic`, each with its
- * spec. The rest stayed because something else reads them —
+ * spec. (`reminderVisibility` has since moved on to `src/shared/utils/` so the
+ * learner shell can read it too.) The rest stayed because something else reads them —
  * `subscriptionConfig` (11 other consumers), `teacherPlans` (13), `paywall`
  * (7), plus `subscriptionStatus`, `lenco`, `invoices`, `topup` and
  * `playBilling`. On an area this widely wired, most of them are not private.

@@ -27,6 +27,10 @@ import { MemoryRouter } from 'react-router-dom'
 
 vi.mock('../../../firebase/config', () => ({ default: {}, auth: {}, db: {} }))
 vi.mock('../../../hooks/useNetworkStatus', () => ({ useNetworkStatus: () => true }))
+// The shell also draws the plan reminder, which reads entitlements (Firestore).
+// This file is about the tab bar, so the reminder is stubbed out; its own
+// behaviour is in PlanReminder.spec.jsx.
+vi.mock('./PlanReminder', () => ({ default: () => null }))
 
 const mockAuth = { currentUser: null, userProfile: null }
 vi.mock('../../../contexts/AuthContext', () => ({ useAuth: () => mockAuth }))
