@@ -25,7 +25,7 @@
  * engines and curriculum reach Firebase through a service, never directly).
  */
 
-import { useEntitlements, useUnlockFlow } from '../../services/entitlements'
+import { planChipHint, useEntitlements, useUnlockFlow } from '../../services/entitlements'
 
 const TONE_CLASS = {
   free: 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-200 dark:border-indigo-400/30',
@@ -49,6 +49,7 @@ const DOT_CLASS = {
  */
 export default function PlanChip({ surface = 'learner', className = '' }) {
   const { planState, chipLabel, chipTone } = useEntitlements()
+  const hint = planChipHint(planState)
   const { requestUnlock } = useUnlockFlow()
 
   // A premium account with nothing to count down does not need a chip taking
@@ -64,7 +65,8 @@ export default function PlanChip({ surface = 'learner', className = '' }) {
       type="button"
       onClick={() => requestUnlock(gate, { screen: 'plan-chip', quota: planState.quotas?.papersThisWeek })}
       className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-black leading-none shadow-none transition-colors ${TONE_CLASS[tone] || TONE_CLASS.neutral} ${className}`}
-      aria-label={`${chipLabel}. Tap to see plans.`}
+      title={hint}
+      aria-label={`${chipLabel}. ${hint} Tap to see plans.`}
     >
       <span className={`h-1.5 w-1.5 rounded-full ${DOT_CLASS[tone] || DOT_CLASS.neutral}`} aria-hidden="true" />
       {chipLabel}
