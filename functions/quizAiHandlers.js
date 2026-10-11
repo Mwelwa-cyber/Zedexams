@@ -201,7 +201,7 @@ exports.buildQuizAiHandlers = (deps) => {
         // CreateQuizV2 submits display casing ("Mathematics"); the enforcement
         // keys are canonical lowercase, so normalise or it silently no-ops.
         const subjectKey = String(subject).toLowerCase()
-            .replace(/[^a-z_]+/g, "_").replace(/^_+|_+$/g, "");
+            .replace(/[^a-z0-9_]+/g, "_").replace(/^_+|_+$/g, "");
         const notationOpts = {subject: subjectKey, fields: QUIZ_EDITOR_FIELDS};
         const report = await enforceNotation(parsedQuestions, notationOpts);
         if (report.applied) {

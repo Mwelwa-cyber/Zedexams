@@ -72,7 +72,7 @@ function sanitizeSlot(raw) {
 /** Sanitise the whole regeneration request. */
 function sanitizeRegenerateInputs(raw = {}) {
   const grade = str(raw.grade, 10).toUpperCase().replace(/\s+/g, "");
-  const subject = str(raw.subject, 40).toLowerCase().replace(/[^a-z_]/g, "_");
+  const subject = str(raw.subject, 40).toLowerCase().replace(/[^a-z0-9_]/g, "_");
   return {
     grade,
     subject,

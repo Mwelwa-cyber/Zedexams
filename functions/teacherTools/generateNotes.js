@@ -130,7 +130,7 @@ function sanitizeInputs(raw = {}) {
   const num = (v, def) => (Number.isFinite(Number(v)) ? Number(v) : def);
 
   const grade = str(raw.grade, 10).toUpperCase().replace(/\s+/g, "");
-  const subject = str(raw.subject, 40).toLowerCase().replace(/[^a-z_]/g, "_");
+  const subject = str(raw.subject, 40).toLowerCase().replace(/[^a-z0-9_]/g, "_");
   const language = str(raw.language || "english", 20).toLowerCase();
 
   // Optional curriculum-module selectors (Phase 1 model). Absent → null/""
@@ -410,7 +410,7 @@ async function runNotes({uid, rawInputs, apiKey, idempotencyKey}) {
     inputs = deriveInputsFromLessonPlan(sourcePlan, inputs);
     // Re-sanitise grade/subject after pulling from the plan.
     inputs.grade = String(inputs.grade || "").toUpperCase().replace(/\s+/g, "");
-    inputs.subject = String(inputs.subject || "").toLowerCase().replace(/[^a-z_]/g, "_");
+    inputs.subject = String(inputs.subject || "").toLowerCase().replace(/[^a-z0-9_]/g, "_");
   }
 
   const inputErrors = validateInputs(inputs);

@@ -55,7 +55,7 @@ function strList(v, maxItems, maxLen) {
 /** Canonical subject key, or '_generic'. */
 function normalizeSubjectKey(subject) {
   const s = String(subject || "_generic")
-    .toLowerCase().replace(/[^a-z_]/g, "_").slice(0, 60);
+    .toLowerCase().replace(/[^a-z0-9_]/g, "_").slice(0, 60);
   return s || GENERIC_SUBJECT;
 }
 

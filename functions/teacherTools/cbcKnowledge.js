@@ -831,7 +831,7 @@ async function lookupTermModules({grade, subject, term}) {
   }
   const gradeNorm = normalizeGrade(grade);
   const subjectNorm = String(subject || "").toLowerCase()
-      .replace(/[^a-z_]/g, "_").slice(0, 40);
+      .replace(/[^a-z0-9_]/g, "_").slice(0, 40);
   try {
     const db = getFirestore();
     const version = await getActiveKbVersion();

@@ -166,7 +166,7 @@ function sanitizeInputs(raw = {}) {
   const num = (v, def) => (Number.isFinite(Number(v)) ? Number(v) : def);
 
   const grade = str(raw.grade, 10).toUpperCase().replace(/\s+/g, "");
-  const subject = str(raw.subject, 40).toLowerCase().replace(/[^a-z_]/g, "_");
+  const subject = str(raw.subject, 40).toLowerCase().replace(/[^a-z0-9_]/g, "_");
   const language = str(raw.language || "english", 20).toLowerCase();
   const difficulty = str(raw.difficulty || "mixed", 10).toLowerCase();
   const style = str(raw.style || "auto", 20).toLowerCase();

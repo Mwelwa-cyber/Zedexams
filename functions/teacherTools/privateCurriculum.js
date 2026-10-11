@@ -340,7 +340,7 @@ function buildRequestMeta({grade, subject, topic, subtopic}) {
   const gradeProfile = inferGradeProfile(grade);
   const subjectId = String(subject || "")
     .toLowerCase()
-    .replace(/[^a-z_]/g, "_");
+    .replace(/[^a-z0-9_]/g, "_");
   const subjectProfile = SUBJECT_PROFILES[subjectId] || {
     labels: [subjectId.replace(/_/g, " ")],
     syllabi: {},
@@ -643,7 +643,7 @@ function buildIngestTagsFor(grade, subject) {
   const gradeProfile = inferGradeProfile(grade);
   const subjectId = String(subject || "")
       .toLowerCase()
-      .replace(/[^a-z_]/g, "_");
+      .replace(/[^a-z0-9_]/g, "_");
   const subjectProfile = SUBJECT_PROFILES[subjectId];
   const tags = [];
   if (subjectProfile && gradeProfile.band) {

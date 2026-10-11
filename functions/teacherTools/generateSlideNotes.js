@@ -110,7 +110,7 @@ function sanitizeInputs(raw = {}) {
   const s = (v, max) => (typeof v === "string" ?
     v.replace(/\u0000/g, "").trim().slice(0, max) : "");
   const grade = s(raw.grade, 10).toUpperCase().replace(/\s+/g, "");
-  const subject = s(raw.subject, 40).toLowerCase().replace(/[^a-z_]/g, "_");
+  const subject = s(raw.subject, 40).toLowerCase().replace(/[^a-z0-9_]/g, "_");
   const language = s(raw.language || "english", 20).toLowerCase();
   return {
     grade,
