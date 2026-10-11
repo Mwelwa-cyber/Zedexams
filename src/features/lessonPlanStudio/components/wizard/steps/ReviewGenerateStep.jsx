@@ -1,5 +1,6 @@
 import { Pencil, Eye } from 'lucide-react'
 import { cleanSubjectName } from '../../../../../shared/utils/subjectName.js'
+import { resolveClassExercise } from '../../../lib/classExercise.js'
 import { SCHOOL_RESOURCE_LEVELS } from '../../../../../config/schoolResources.js'
 import {
   OPTIONAL_SECTION_LABELS,
@@ -87,6 +88,13 @@ export function ReviewGenerateStep({ studioState, onEditStep, hasPlan = false, o
   // §2.4 — name the sections the teacher switched OFF, not the ones left on.
   // A list of everything included is noise; a list of what is missing is the
   // thing a teacher wants to check before submitting the plan.
+  const classExercise = resolveClassExercise(formatOptions)
+  // One line in the summary; the full text stays in the form.
+  const summarise = (text) => {
+    const oneLine = text.replace(/\s+/g, ' ')
+    return oneLine.length > 90 ? `${oneLine.slice(0, 87)}…` : oneLine
+  }
+
   const sectionsOff = Object.entries(formatOptions.sections ?? {})
     .filter(([, v]) => v === false)
     .map(([k]) => OPTIONAL_SECTION_LABELS[k] ?? k)
@@ -149,6 +157,12 @@ export function ReviewGenerateStep({ studioState, onEditStep, hasPlan = false, o
         <Row label="Format" value={FORMAT_LABELS[formatOptions.format] ?? formatOptions.format} />
         <Row label="Margins" value={formatOptions.marginMm ? `${formatOptions.marginMm} mm` : ''} />
         <Row label="Medium" value={lessonDetails.medium || 'English'} />
+        {classExercise.include && (
+          <Row
+            label="Class exercise"
+            value={classExercise.details ? summarise(classExercise.details) : 'Included — we will write it'}
+          />
+        )}
         {sectionsOff.length > 0 && <Row label="Sections off" value={sectionsOff.join(', ')} />}
         {advancedOn.length > 0 && <Row label="Advanced" value={advancedOn.join(', ')} />}
       </Section>

@@ -83,6 +83,7 @@ Previous Curriculum lesson plans follow this structure:
 - TEACHING AND LEARNING AIDS — materials list
 - LESSON PROGRESSION with EXACTLY these stages: INTRODUCTION → DEVELOPMENT → CONCLUSION
   Each stage holds Teacher's Activities, Pupils' Activities and Assessment Criteria.
+  The ONE exception: when the user prompt requests a CLASS EXERCISE, add exactly one extra stage named "CLASS EXERCISE" between DEVELOPMENT and CONCLUSION. Never add it when it was not requested.
 - PUPIL EVALUATION (blank — left for teacher)
 - TEACHER EVALUATION (blank — left for teacher)
 
@@ -112,7 +113,7 @@ OUTPUT FORMAT — return ONLY a single valid JSON object (no markdown fences, no
   ],
   "homework": string
 }
-In every stage object, "teacher" holds the Teaching Activities and "pupils" holds the Learning Activities. Use those EXACT key names — do NOT rename them to "teacherActivities"/"learnerActivities". No markdown. No commentary.`
+In every stage object, "teacher" holds the Teaching Activities and "pupils" holds the Learning Activities. Use those EXACT key names — do NOT rename them to "teacherActivities"/"learnerActivities". When a CLASS EXERCISE is requested, the "stages" array gains a fourth object { "name": "CLASS EXERCISE", "duration": "8 min", "teacher": string, "pupils": string, "assessment": string } between DEVELOPMENT and CONCLUSION, and the stage durations still add up to the lesson duration. No markdown. No commentary.`
 
 // Default alias — kept for backward compatibility with existing callers.
 export const STUDIO_SYSTEM_PROMPT = STUDIO_SYSTEM_PROMPT_CBC

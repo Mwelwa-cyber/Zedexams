@@ -84,3 +84,22 @@ describe('studioSystemPrompt — JSON output contract', () => {
     }
   })
 })
+
+// The 2013 plan has exactly three stages, so a requested class exercise needs an
+// explicit, conditional exception — and must not leak into plans that did not ask.
+describe('studioSystemPrompt — class exercise (OBC)', () => {
+  it('keeps three stages as the default', () => {
+    expect(STUDIO_SYSTEM_PROMPT_PREVIOUS).toContain('EXACTLY these stages: INTRODUCTION → DEVELOPMENT → CONCLUSION')
+  })
+
+  it('allows one CLASS EXERCISE stage only when the user prompt requests it', () => {
+    expect(STUDIO_SYSTEM_PROMPT_PREVIOUS).toMatch(/when the user prompt requests a CLASS EXERCISE/)
+    expect(STUDIO_SYSTEM_PROMPT_PREVIOUS).toMatch(/Never add it when it was not requested/)
+    expect(STUDIO_SYSTEM_PROMPT_PREVIOUS).toContain('{ "name": "CLASS EXERCISE"')
+  })
+
+  it('does not teach the CBC prompt a stage it already covers with EXERCISE / ASSESSMENT', () => {
+    expect(STUDIO_SYSTEM_PROMPT_CBC).not.toContain('"CLASS EXERCISE"')
+  })
+})
+

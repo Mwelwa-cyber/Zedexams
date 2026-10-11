@@ -565,3 +565,57 @@ describe('FormatOptionsForm — localLanguage toggle', () => {
     expect(onUpdateAdvanced).toHaveBeenCalledWith('localLanguage', true)
   })
 })
+
+// ── Class exercise ────────────────────────────────────────────────────────────
+
+describe('FormatOptionsForm — class exercise', () => {
+  it('is visible without opening Advanced Options and starts unticked', () => {
+    renderForm()
+    const box = screen.getByRole('checkbox', { name: /include a class exercise/i })
+    expect(box).not.toBeChecked()
+    expect(screen.queryByLabelText(/your exercise/i)).toBeNull()
+  })
+
+  it('tolerates a draft saved before the field existed', () => {
+    const { formatOptions } = { formatOptions: { ...DEFAULT_FORMAT_OPTIONS } }
+    delete formatOptions.classExercise
+    renderForm({ formatOptions })
+    expect(screen.getByRole('checkbox', { name: /include a class exercise/i })).not.toBeChecked()
+  })
+
+  it('ticking it saves { include: true } and keeps any details already typed', () => {
+    const { onUpdateFormat } = renderForm({
+      formatOptions: { ...DEFAULT_FORMAT_OPTIONS, classExercise: { include: false, details: 'kept' } },
+    })
+    fireEvent.click(screen.getByRole('checkbox', { name: /include a class exercise/i }))
+    expect(onUpdateFormat).toHaveBeenCalledWith('classExercise', { include: true, details: 'kept' })
+  })
+
+  it('ticked: shows the details box and saves exactly what is typed, spaces included', () => {
+    const { onUpdateFormat } = renderForm({
+      formatOptions: { ...DEFAULT_FORMAT_OPTIONS, classExercise: { include: true, details: '' } },
+    })
+    const box = screen.getByLabelText(/your exercise/i)
+    fireEvent.change(box, { target: { value: '5 questions ' } })
+    // Trailing space survives: the field shows RAW text; cleaning happens only
+    // when the prompt is built, otherwise every space after a word would vanish.
+    expect(onUpdateFormat).toHaveBeenCalledWith('classExercise', { include: true, details: '5 questions ' })
+  })
+
+  it('shows the teacher\'s text back and a character counter', () => {
+    renderForm({
+      formatOptions: { ...DEFAULT_FORMAT_OPTIONS, classExercise: { include: true, details: 'Define gender' } },
+    })
+    expect(screen.getByLabelText(/your exercise/i)).toHaveValue('Define gender')
+    expect(screen.getByText('13/600')).toBeInTheDocument()
+  })
+
+  it('explains where the exercise lands, per curriculum', () => {
+    const { unmount } = renderForm({ curriculumMode: 'previous' })
+    expect(screen.getByText(/adds a "class exercise" stage after development/i)).toBeInTheDocument()
+    unmount()
+    renderForm({ curriculumMode: 'cbc' })
+    expect(screen.getByText(/exercise \/ assessment stage/i)).toBeInTheDocument()
+  })
+})
+

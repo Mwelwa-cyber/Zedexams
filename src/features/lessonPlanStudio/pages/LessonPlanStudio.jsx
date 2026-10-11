@@ -25,6 +25,7 @@ import { renderPlanHtml } from '../../../shared/utils/renderPlanHtml'
 import { normalizePlanShape } from '../lib/planShape'
 import { cleanSubjectName } from '../../../shared/utils/subjectName'
 import { STUDIO_SYSTEM_PROMPT_CBC, STUDIO_SYSTEM_PROMPT_PREVIOUS } from '../lib/studioSystemPrompt'
+import { classExercisePromptLines, resolveClassExercise } from '../lib/classExercise'
 import { schoolResourcePromptLines, DEFAULT_SCHOOL_RESOURCES } from '../../../config/schoolResources'
 import { lessonStudioSeed, aiPrefsPromptLines } from '../../../utils/teacherDefaults'
 import { getSchoolProfile } from '../../../utils/schoolProfileService'
@@ -923,6 +924,8 @@ export default function LessonPlanStudio() {
       userPromptLines.push('Ground the entire plan in this context. The specificCompetence drives every stage.')
     }
 
+    const classExercise = resolveClassExercise(formatOptions)
+
     if (curriculumMode === 'previous' && selectedOutcomes?.length) {
       userPromptLines.push('')
       userPromptLines.push('<previous_context>')
@@ -930,7 +933,11 @@ export default function LessonPlanStudio() {
       selectedOutcomes.forEach((o, i) => userPromptLines.push(`${i + 1}. ${o}`))
       userPromptLines.push('</previous_context>')
       userPromptLines.push('')
-      userPromptLines.push('Ground the lesson in achieving these specific outcomes. The lesson structure follows: Introduction → Development → Conclusion → Homework.')
+      userPromptLines.push(
+        classExercise.include
+          ? 'Ground the lesson in achieving these specific outcomes. The lesson structure follows: Introduction → Development → Class Exercise → Conclusion → Homework.'
+          : 'Ground the lesson in achieving these specific outcomes. The lesson structure follows: Introduction → Development → Conclusion → Homework.',
+      )
     }
 
     if (planningMode === 'series' && lessonItem?.coveredContent?.length) {
@@ -943,6 +950,7 @@ export default function LessonPlanStudio() {
     if (lessonFocus) {
       userPromptLines.push(`Focus for THIS lesson: ${lessonFocus}`)
     }
+    userPromptLines.push(...classExercisePromptLines(curriculumMode, classExercise))
 
     // Format preferences (§3.1). The word budgets are the whole point: the old
     // Detail Level knob changed TONE, so "Simplified" produced the same 80-120
