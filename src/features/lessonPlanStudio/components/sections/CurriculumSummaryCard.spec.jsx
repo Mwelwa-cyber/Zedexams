@@ -102,6 +102,13 @@ describe('CurriculumSummaryCard — CBC mode', () => {
     ).toBeInTheDocument()
   })
 
+  it('tells the teacher the competence follows the sub-topic', () => {
+    render(
+      <CurriculumSummaryCard subtopicRow={CBC_ROW} curriculumMode="cbc" selectedOutcomes={[]} />,
+    )
+    expect(screen.getByText(/pick another sub-topic above/i)).toBeInTheDocument()
+  })
+
   it('does NOT render Specific Outcomes section in CBC mode', () => {
     render(
       <CurriculumSummaryCard subtopicRow={CBC_ROW} curriculumMode="cbc" selectedOutcomes={[]} />,

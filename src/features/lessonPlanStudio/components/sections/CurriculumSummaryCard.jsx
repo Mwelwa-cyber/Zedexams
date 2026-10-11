@@ -31,6 +31,14 @@ export function CurriculumSummaryCard({ subtopicRow, curriculumMode, selectedOut
 
       {curriculumMode === 'cbc' && (
         <div className="space-y-3">
+          {/* Nothing on this card is a control. The competence belongs to the
+              sub-topic, so changing it means changing the sub-topic — without
+              this line the pills read as buttons that are switched off. */}
+          <p className="text-[11px] italic leading-snug text-[#7a6d5d]">
+            Filled in from the syllabus for the sub-topic you chose. To plan for a different
+            competence, pick another sub-topic above.
+          </p>
+
           {/* Specific Competence */}
           <div>
             <span className={SECTION_LABEL_CLS}>Specific Competence</span>
