@@ -584,6 +584,74 @@ describe('topics with no sub-topic level — CBC', () => {
   })
 })
 
+// ── Outcome-column spellings ──────────────────────────────────────────────────
+//
+// The 2013 sheets do not agree on what the outcomes column is called. The picker
+// used to read only "SPECIFIC OUTCOMES", so every sub-topic on a sheet spelling
+// it "SPECIFIC OUTCOME" (Mathematics Gr 11-12, both Religious Education
+// syllabi) loaded ZERO outcomes — and the OBC wizard cannot continue without one.
+// The headers below are the real spellings found in curriculum-data-2013.json.
+
+function sheetWithOutcomeColumn(outcomeHeader, contentHeader = 'KNOWLEDGE') {
+  const cols = ['TOPIC', 'SUB TOPIC', outcomeHeader, contentHeader, 'SKILLS', 'VALUES']
+  const cell = (t, s, o, c) => ({ type: 'data', cells: Object.fromEntries(cols.map((k, i) => [k, [t, s, o, c, '', ''][i]])) })
+  return {
+    'Mathematics Syllabus (Grades 10-12, 2013)': {
+      'Grade 11': {
+        columns: cols,
+        rows: [
+          cell('11.1 SEQUENCES', '11.1.1 Arithmetic progression', '11.1.1.1 Identify an AP 11.1.1.2 Find the nth term', '• Common difference'),
+          cell('', '', '11.1.1.3 Find the sum of an AP', '• Sum formula'),
+        ],
+      },
+    },
+  }
+}
+
+describe.each([
+  ['SPECIFIC OUTCOME (singular)', 'SPECIFIC OUTCOME'],
+  ['SPECIFIC OUTC OME (broken mid-word)', 'SPECIFIC OUTC OME'],
+  ['Specific Outcomes (case)', 'Specific Outcomes'],
+  ['SPECIFIC OUTCOMES (the original spelling)', 'SPECIFIC OUTCOMES'],
+])('getSubtopicDetail — outcomes column spelled %s', (_label, header) => {
+  beforeEach(() => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(sheetWithOutcomeColumn(header)) })
+  })
+
+  it('loads every outcome for the sub-topic', async () => {
+    const result = await getSubtopicDetail(
+      'Mathematics Syllabus (Grades 10-12, 2013)', 'Grade 11',
+      '11.1 SEQUENCES', '11.1.1 Arithmetic progression', 'previous',
+    )
+    expect(result).not.toBeNull()
+    expect(result.specificOutcomes).toEqual([
+      '11.1.1.1 Identify an AP',
+      '11.1.1.2 Find the nth term',
+      '11.1.1.3 Find the sum of an AP',
+    ])
+  })
+})
+
+describe('getSubtopicDetail — other column variants', () => {
+  it('reads the outcomes column even when CONTENT is named KNOWLEDGE and SKILLS is SKILL', async () => {
+    const cols = ['THEME', 'TOPIC', 'SUB-TOPIC', 'SPECIFIC OUTCOME', 'KNOWLEDGE', 'SKILL', 'VALUE']
+    const data = {
+      'Religious Education 2044 Syllabus (Grades 10-12, 2013)': {
+        'Grade 10': {
+          columns: cols,
+          rows: [{ type: 'data', cells: Object.fromEntries(cols.map((c, i) => [c, ['WORK', '10.1 Work in a changing society', '10.1.1 Work today', '10.1.1.1 Describe work today.', '• Meaning of work', '', ''][i]])) }],
+        },
+      },
+    }
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(data) })
+    const result = await getSubtopicDetail(
+      'Religious Education 2044 Syllabus (Grades 10-12, 2013)', 'Grade 10',
+      '10.1 Work in a changing society', '10.1.1 Work today', 'previous',
+    )
+    expect(result?.specificOutcomes).toEqual(['10.1.1.1 Describe work today.'])
+  })
+})
+
 // ── Default curriculumMode ────────────────────────────────────────────────────
 
 describe('default curriculumMode', () => {
