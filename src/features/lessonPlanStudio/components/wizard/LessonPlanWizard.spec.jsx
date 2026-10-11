@@ -355,6 +355,70 @@ describe('LessonPlanWizard — Review & Generate', () => {
 
 // ── Wizard-step persistence / restore ─────────────────────────────────────────
 
+// ── Class exercise (real useStudioState, real Format step, real Review step) ──
+
+describe('LessonPlanWizard — class exercise', () => {
+  // Land on step 4 (Format & Options) without passing through it.
+  function walkToFormat() {
+    completeStep1(); next()
+    completeStep2(); next()
+    completeStep3(); next()
+  }
+
+  it('is offered on the Format step without opening Advanced Options', () => {
+    renderWizard()
+    walkToFormat()
+    expect(screen.getByRole('heading', { name: 'Format & Options' })).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: /include a class exercise/i })).not.toBeChecked()
+  })
+
+  it('shows the exercise on the Review step and keeps it in state for generation', () => {
+    renderWizard()
+    walkToFormat()
+    fireEvent.click(screen.getByRole('checkbox', { name: /include a class exercise/i }))
+    fireEvent.change(screen.getByLabelText(/your exercise/i), {
+      target: { value: 'Five short questions on counting to 1000' },
+    })
+    next()
+    expect(screen.getByRole('heading', { name: 'Review & Generate' })).toBeInTheDocument()
+    expect(screen.getByText('Class exercise')).toBeInTheDocument()
+    expect(screen.getByText('Five short questions on counting to 1000')).toBeInTheDocument()
+    expect(studioStateRef.formatOptions.classExercise).toEqual({
+      include: true,
+      details: 'Five short questions on counting to 1000',
+    })
+  })
+
+  it('ticked with no details, Review says we will write it', () => {
+    renderWizard()
+    walkToFormat()
+    fireEvent.click(screen.getByRole('checkbox', { name: /include a class exercise/i }))
+    next()
+    expect(screen.getByText(/included — we will write it/i)).toBeInTheDocument()
+  })
+
+  it('shows no Class exercise row when it was not asked for', () => {
+    renderWizard()
+    walkToReview()
+    expect(screen.queryByText('Class exercise')).toBeNull()
+  })
+
+  it('survives Edit → Back to Review, and is not wiped by changing the page budget', () => {
+    renderWizard()
+    walkToFormat()
+    fireEvent.click(screen.getByRole('checkbox', { name: /include a class exercise/i }))
+    fireEvent.change(screen.getByLabelText(/your exercise/i), { target: { value: 'Define counting.' } })
+    next()
+    fireEvent.click(screen.getByRole('button', { name: /edit format & options/i }))
+    expect(screen.getByLabelText(/your exercise/i)).toHaveValue('Define counting.')
+    // The page budget re-applies its own defaults — it must not take this with it.
+    act(() => { studioStateRef.setFormatOption('pageBudget', '1') })
+    expect(studioStateRef.formatOptions.classExercise).toEqual({ include: true, details: 'Define counting.' })
+    fireEvent.click(screen.getByRole('button', { name: /back to review/i }))
+    expect(screen.getByText('Define counting.')).toBeInTheDocument()
+  })
+})
+
 describe('LessonPlanWizard — step restore', () => {
   it('renders the step held in studioState.wizardStep (draft restore path)', () => {
     renderWizard()

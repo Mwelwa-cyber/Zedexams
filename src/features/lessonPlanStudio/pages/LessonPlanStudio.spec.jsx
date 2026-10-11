@@ -699,6 +699,66 @@ describe('LessonPlanStudio — CBC user prompt', () => {
   })
 })
 
+// ── Class exercise flows into the user prompt ─────────────────────────────────
+
+describe('LessonPlanStudio — class exercise in user prompt', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    innerCallable.mockResolvedValue({ data: { text: '{"topic":"Test","stages":[]}' } })
+  })
+
+  async function generate(stateOverrides) {
+    renderStudioWithGeneration(stateOverrides)
+    fireEvent.click(screen.getByTestId('trigger-generate'))
+    await waitFor(() => { expect(innerCallable).toHaveBeenCalled() })
+    return innerCallable.mock.calls[0][0].userPrompt
+  }
+
+  const withExercise = (classExercise) => ({
+    formatOptions: { ...initialFormatOptions('2'), illustrations: 'automatic', classExercise },
+  })
+
+  it('OBC: asks for an extra CLASS EXERCISE stage and fences the teacher\'s own questions', async () => {
+    const userPrompt = await generate({
+      curriculumMode: 'previous',
+      selectedOutcomes: ['11.5.1.3 Distinguish gender roles from sex roles.'],
+      ...withExercise({ include: true, details: '1. Define gender roles.\n2. Give two examples.' }),
+    })
+    expect(userPrompt).toContain('"CLASS EXERCISE"')
+    expect(userPrompt).toContain('between DEVELOPMENT and CONCLUSION')
+    expect(userPrompt).toContain('<class_exercise>\n1. Define gender roles.\n2. Give two examples.\n</class_exercise>')
+    expect(userPrompt).toContain('Introduction → Development → Class Exercise → Conclusion → Homework')
+  })
+
+  it('OBC: leaves the prompt exactly as before when no exercise is requested', async () => {
+    const userPrompt = await generate({
+      curriculumMode: 'previous',
+      selectedOutcomes: ['11.5.1.3 Distinguish gender roles from sex roles.'],
+    })
+    expect(userPrompt).not.toContain('CLASS EXERCISE')
+    expect(userPrompt).not.toContain('<class_exercise>')
+    expect(userPrompt).toContain('Introduction → Development → Conclusion → Homework')
+  })
+
+  it('CBC: points at the existing EXERCISE / ASSESSMENT stage, never a new one', async () => {
+    const userPrompt = await generate({
+      curriculumMode: 'cbc',
+      ...withExercise({ include: true, details: '' }),
+    })
+    expect(userPrompt).toContain('EXERCISE / ASSESSMENT stage')
+    expect(userPrompt).not.toContain('"CLASS EXERCISE"')
+    expect(userPrompt).toContain('about 5 questions')
+  })
+
+  it('an unticked box ignores whatever details are left in the draft', async () => {
+    const userPrompt = await generate({
+      curriculumMode: 'previous',
+      ...withExercise({ include: false, details: 'leftover from an earlier edit' }),
+    })
+    expect(userPrompt).not.toContain('leftover from an earlier edit')
+  })
+})
+
 // ── School resources flow into the user prompt ────────────────────────────────
 
 describe('LessonPlanStudio — school resources in user prompt', () => {

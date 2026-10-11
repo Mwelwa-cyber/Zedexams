@@ -16,6 +16,7 @@ import {
   defaultSections,
   marginWarning,
 } from '../../../../utils/lessonPlanFormat'
+import { CLASS_EXERCISE_MAX_DETAILS } from '../../lib/classExercise'
 
 // Decorative icon per page-budget option (keyed by value).
 const BUDGET_ICONS = {
@@ -238,6 +239,10 @@ export function FormatOptionsForm({ formatOptions, onUpdateFormat, onUpdateAdvan
   const marginMm = formatOptions.marginMm ?? MARGIN_PRESETS.normal
   const margin = marginWarning(marginMm)
   const sections = formatOptions.sections ?? defaultSections(pageBudget)
+  const classExerciseInclude = formatOptions.classExercise?.include === true
+  const classExerciseDetails = typeof formatOptions.classExercise?.details === 'string'
+    ? formatOptions.classExercise.details
+    : ''
 
   // Changing the budget re-applies that budget's DEFAULTS for the things it
   // governs — margins, density and which optional sections are on. Leaving the
@@ -517,6 +522,50 @@ export function FormatOptionsForm({ formatOptions, onUpdateFormat, onUpdateAdvan
               )}
             </div>
           )}
+
+          {/* Class exercise. Deliberately visible rather than filed under
+              Advanced Options: the optional-sections list lives inside that
+              collapsed accordion, so a teacher looking for it never found it. */}
+          <div>
+            <SubLabel>Class exercise</SubLabel>
+            <label
+              htmlFor="fof-class-exercise"
+              className="flex cursor-pointer items-center justify-between gap-2 rounded-xl border border-[#e0d7c8] bg-white px-3 py-2.5"
+            >
+              <span className="text-[12px] font-semibold text-[#3d3529]">Include a class exercise</span>
+              <input
+                id="fof-class-exercise"
+                type="checkbox"
+                checked={classExerciseInclude}
+                onChange={() => onUpdateFormat('classExercise', { include: !classExerciseInclude, details: classExerciseDetails })}
+                className="h-4 w-4 rounded border-[#d9cfbe] text-blue-600 focus:ring-blue-400"
+              />
+            </label>
+            <p className="mt-1.5 text-[11px] italic text-[#7a6d5d]">
+              {curriculumMode === 'previous'
+                ? 'Adds a "Class Exercise" stage after Development.'
+                : 'Written into the Exercise / Assessment stage.'}
+            </p>
+            {classExerciseInclude && (
+              <div className="mt-2">
+                <label htmlFor="fof-class-exercise-details" className="mb-1 block text-[11px] font-semibold text-[#7a6d5d]">
+                  Your exercise (optional)
+                </label>
+                <textarea
+                  id="fof-class-exercise-details"
+                  value={classExerciseDetails}
+                  maxLength={CLASS_EXERCISE_MAX_DETAILS}
+                  rows={4}
+                  onChange={(e) => onUpdateFormat('classExercise', { include: true, details: e.target.value })}
+                  placeholder="Type your own questions or describe the task, e.g. “5 short questions on the types of constitution”. Leave blank and we will write one for you."
+                  className="w-full resize-y rounded-lg border border-[#d9cfbe] bg-white px-2.5 py-1.5 text-[13px] text-[#3d3529] focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                />
+                <p className="mt-1 text-right text-[10px] text-[#a39d8e]">
+                  {classExerciseDetails.length}/{CLASS_EXERCISE_MAX_DETAILS}
+                </p>
+              </div>
+            )}
+          </div>
 
           {/* 8. Advanced Options */}
           <div>
