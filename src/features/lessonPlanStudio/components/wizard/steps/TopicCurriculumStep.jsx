@@ -8,7 +8,8 @@ import { SpecificOutcomeForm } from '../../sections/SpecificOutcomeForm.jsx'
  * Topic + subtopic pickers (subtopic stays disabled until a topic is chosen —
  * enforced inside TopicSubtopicForm) and the auto-filled, read-only
  * Curriculum Summary (specific competence, learning activities, expected
- * standard). For the Previous curriculum the summary lists the specific
+ * standard). When a CBC sub-topic has several competences the teacher picks
+ * the one this lesson targets. For the Previous curriculum the summary lists the specific
  * outcomes and the teacher picks the one(s) this lesson targets.
  *
  * Props mirror the reused sections; all state lives in useStudioState.
@@ -22,6 +23,7 @@ export function TopicCurriculumStep({
   onSubtopicRowLoaded,
   selectedOutcomes,
   onToggleOutcome,
+  onSelectCompetence,
 }) {
   const subtopicRow = topicData.subtopicRow ?? null
 
@@ -47,6 +49,7 @@ export function TopicCurriculumStep({
         subtopicRow={subtopicRow}
         curriculumMode={curriculumMode}
         selectedOutcomes={selectedOutcomes}
+        onSelectCompetence={onSelectCompetence}
       />
 
       {/* Previous curriculum: pick the specific outcome(s) for this lesson. */}

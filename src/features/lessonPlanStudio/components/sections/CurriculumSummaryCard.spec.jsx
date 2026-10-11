@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { CurriculumSummaryCard } from './CurriculumSummaryCard'
 
 const CBC_ROW = {
@@ -100,6 +100,37 @@ describe('CurriculumSummaryCard — CBC mode', () => {
     expect(
       screen.getByText('Learner can categorise foods by nutrient group'),
     ).toBeInTheDocument()
+  })
+
+  it('shows a plain competence, with no choice, when the sub-topic has one', () => {
+    render(
+      <CurriculumSummaryCard
+        subtopicRow={{ ...CBC_ROW, competences: [{ specificCompetence: CBC_ROW.specificCompetence }] }}
+        curriculumMode="cbc"
+        selectedOutcomes={[]}
+        onSelectCompetence={() => {}}
+      />,
+    )
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument()
+  })
+
+  it('offers every competence as a choice when the sub-topic has several', () => {
+    const onSelect = vi.fn()
+    const row = {
+      ...CBC_ROW,
+      competences: [
+        { specificCompetence: CBC_ROW.specificCompetence, learningActivities: [], expectedStandard: '' },
+        { specificCompetence: 'Explain the role of vitamins', learningActivities: [], expectedStandard: '' },
+      ],
+    }
+    render(
+      <CurriculumSummaryCard subtopicRow={row} curriculumMode="cbc" selectedOutcomes={[]} onSelectCompetence={onSelect} />,
+    )
+    const radios = screen.getAllByRole('radio')
+    expect(radios).toHaveLength(2)
+    expect(radios[0]).toBeChecked()
+    fireEvent.click(radios[1])
+    expect(onSelect).toHaveBeenCalledWith('Explain the role of vitamins')
   })
 
   it('does NOT render Specific Outcomes section in CBC mode', () => {

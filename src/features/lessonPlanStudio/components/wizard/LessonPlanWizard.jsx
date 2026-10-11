@@ -324,6 +324,7 @@ export function LessonPlanWizard({
                   onSubtopicRowLoaded={(row) => setTopicField('subtopicRow', row)}
                   selectedOutcomes={selectedOutcomes}
                   onToggleOutcome={toggleSelectedOutcome}
+                  onSelectCompetence={(value) => setTopicField('competence', value)}
                 />
               )}
               {currentStep === 2 && (

@@ -156,6 +156,7 @@ function draftInputFingerprint(s) {
     lessonDetails: s.lessonDetails,
     topic: s.topicData?.topic ?? '',
     subtopic: s.topicData?.subtopic ?? '',
+    competence: s.topicData?.competence ?? '',
     selectedOutcomes: s.selectedOutcomes,
     learningEnvironments: s.learningEnvironments,
     lessonSeries: {

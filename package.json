@@ -982,7 +982,8 @@
     "test:function-instance-caps": "node scripts/test-function-instance-caps.mjs",
     "test:parent-share": "node scripts/test-parent-share.mjs",
     "test:guardian-link-pay": "node functions/guardianUnlock/linkPayment.test.js",
-    "test:payment-link-tag": "node functions/paymentHandlers.linkTag.test.js"
+    "test:payment-link-tag": "node functions/paymentHandlers.linkTag.test.js",
+    "test:lesson-competence": "node src/features/lessonPlanStudio/lib/competenceChoice.test.js"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",
