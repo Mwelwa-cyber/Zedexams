@@ -5,6 +5,17 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-10-11
+
+### Added
+
+- Choose between a sub-topic's competences (CBC) (#2743)
+
+### Fixed
+
+- Keep digits in subject keys and refund quota on failed generation (#2744)
+- Plan chip opens teacher plans, not the learner price ladder (#2742)
+
 ## 2026-10-10
 
 ### Fixed
