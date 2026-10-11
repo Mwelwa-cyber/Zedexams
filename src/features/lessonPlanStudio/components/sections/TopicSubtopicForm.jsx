@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { applyCompetenceChoice } from '../../lib/competenceChoice.js'
 import { BookOpen, Layers, ListChecks } from '../../../../shared/components/icons'
 import { useSubjectTopics } from '../../../../shared/hooks/useSubjectTopics.js'
 import { useSubtopicDetail } from '../../../../shared/hooks/useSubtopicDetail.js'
@@ -26,7 +27,7 @@ function isDone(topicData) {
  * TopicSubtopicForm — collapsible sidebar section with cascading dropdowns.
  *
  * Props:
- *   topicData: { topic: string, subtopic: string, subtopicRow: object|null }
+ *   topicData: { topic: string, subtopic: string, subtopicRow: object|null, competence?: string }
  *   lessonDetails: { grade: string, subject: string, ...rest }
  *   curriculumMode: 'cbc' | 'previous' | null
  *   onTopicChange: (topic: string) => void
@@ -89,12 +90,22 @@ export function TopicSubtopicForm({
     curriculumMode,
   )
 
+  // The row the rest of the studio sees: the loaded row with the teacher's
+  // chosen competence applied. Memoised so its identity only changes when the
+  // row or the choice does — the effect below refires every render (its callback
+  // is an inline arrow) and relies on setTopicField bailing out on an identical
+  // value.
+  const effectiveRow = useMemo(
+    () => applyCompetenceChoice(subtopicRow, topicData.competence),
+    [subtopicRow, topicData.competence],
+  )
+
   // Propagate the loaded row up so the root state can gate validation
   useEffect(() => {
     if (typeof onSubtopicRowLoaded === 'function') {
-      onSubtopicRowLoaded(subtopicRow)
+      onSubtopicRowLoaded(effectiveRow)
     }
-  }, [subtopicRow, onSubtopicRowLoaded])
+  }, [effectiveRow, onSubtopicRowLoaded])
 
   // Find the topic object that matches the currently-selected topic label,
   // so we can populate the subtopic dropdown.

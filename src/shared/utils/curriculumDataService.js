@@ -481,6 +481,28 @@ export async function getTopicsForSubject(subject, grade, curriculumMode = 'cbc'
   return sortByCurriculumCode(topics, (t) => t.label)
 }
 
+/**
+ * Carry a sub-topic forward over merged-cell blanks (CBC rows).
+ *
+ * `rowsWithPropagatedTopic` carries the TOPIC forward but not the sub-topic, so
+ * a sub-topic's second and later competences come out with `subtopic: ''`. A row
+ * inherits only when it carries a competence (a pure filler row stays blank) and
+ * only within its own topic. Used by getSubtopicDetail alone — the pickers and
+ * the other studios keep reading the unchanged rows.
+ */
+function withCarriedSubtopic(rows) {
+  let topic = null
+  let carried = ''
+  return rows.map((row) => {
+    if (row.topic !== topic) { topic = row.topic; carried = '' }
+    if (row.subtopic) {
+      carried = row.subtopic
+      return row
+    }
+    return row.specificCompetence && carried ? { ...row, subtopic: carried } : row
+  })
+}
+
 /** Bullet-prefixed learning-activity text → array of plain lines. */
 function parseLearningActivities(raw) {
   return String(raw || '')
@@ -555,22 +577,32 @@ export async function getSubtopicDetail(subject, grade, topic, subtopic, curricu
       }
     } else {
       // CBC: rowsWithPropagatedTopic already maps the correct column names.
-      const rows = rowsWithPropagatedTopic(sheet?.rows || [])
-      for (const row of rows) {
-        if (
-          String(row.topic || '').trim().toLowerCase() === topicLower &&
-          String(row.subtopic || '').trim().toLowerCase() === subtopicLower
-        ) {
+      const rows = withCarriedSubtopic(rowsWithPropagatedTopic(sheet?.rows || []))
+      const group = rows.filter((row) =>
+        String(row.topic || '').trim().toLowerCase() === topicLower &&
+        String(row.subtopic || '').trim().toLowerCase() === subtopicLower)
+      if (group.length > 0) {
+        const first = group[0]
+        return {
+          topic: first.topic,
+          subtopic: first.subtopic,
+          // The first competence stays at the top level so every existing
+          // reader (prompt builder, summary card, validation) is unchanged.
+          specificCompetence: first.specificCompetence || '',
           // Parse bullet-prefixed learning activities into an array.
-          const learningActivities = parseLearningActivities(row.learningActivities)
-
-          return {
-            topic: row.topic,
-            subtopic: row.subtopic,
-            specificCompetence: row.specificCompetence || '',
-            learningActivities,
-            expectedStandard: row.expectedStandard || '',
-          }
+          learningActivities: parseLearningActivities(first.learningActivities),
+          expectedStandard: first.expectedStandard || '',
+          // Every competence under this sub-topic, in syllabus order. A
+          // sub-topic's later competences sit on rows whose SUB-TOPIC cell is
+          // blank (a vertically merged cell), so before the carry-forward they
+          // were unreachable.
+          competences: group
+            .filter((row) => row.specificCompetence)
+            .map((row) => ({
+              specificCompetence: row.specificCompetence,
+              learningActivities: parseLearningActivities(row.learningActivities),
+              expectedStandard: row.expectedStandard || '',
+            })),
         }
       }
       // Topic with no sub-topic level — see the 'previous' branch above.
