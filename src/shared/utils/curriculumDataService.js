@@ -231,8 +231,16 @@ function propagatePreviousRows(sheet) {
     }
     if (rawTopic) { topic = rawTopic; carriedSub = '' }
     if (rawSub) carriedSub = rawSub
-    const specificOutcomesRaw = String(cells['SPECIFIC OUTCOMES'] || '').trim()
-    const content = String(cells.CONTENT || cells.KNOWLEDGE || '').trim()
+    // Read the outcomes/content columns by ROLE, not by literal header: the 2013
+    // sheets spell the outcomes column "SPECIFIC OUTCOMES", "SPECIFIC OUTCOME"
+    // and even "SPECIFIC OUTC OME", and a literal lookup silently loaded zero
+    // outcomes for every sub-topic on the sheets that spell it differently.
+    const specificOutcomesRaw = String(
+      (shiftRoles.outcomes ? cells[shiftRoles.outcomes] : cells['SPECIFIC OUTCOMES']) || '',
+    ).trim()
+    const content = String(
+      shiftRoles.content.map((c) => cells[c]).find(Boolean) || cells.CONTENT || cells.KNOWLEDGE || '',
+    ).trim()
     // Skip pure-filler rows: nothing identifying and no content.
     if (!topic && !rawSub && !specificOutcomesRaw) continue
     // Merged-cell inheritance: a blank sub-topic cell on a row that carries
