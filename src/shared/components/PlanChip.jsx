@@ -8,8 +8,9 @@
  * than a modal does, and it makes the limit legible BEFORE it is hit, which is
  * the difference between a rule and an ambush.
  *
- * Tapping opens the plan ladder (adults) or the guardian-ask sheet (under-18)
- * through `useUnlockFlow`, which is the only thing that decides which.
+ * Tapping a learner chip opens the learner plan ladder through `useUnlockFlow`.
+ * A TEACHER chip goes to /teacher/subscription instead: the unlock sheet only
+ * carries learner prices, and a teacher's plans (Pro / Max) live on that page.
  *
  * ── Why src/shared/ and not the subscription feature ───────────────────
  *
@@ -25,6 +26,7 @@
  * engines and curriculum reach Firebase through a service, never directly).
  */
 
+import { useNavigate } from 'react-router-dom'
 import { planChipHint, useEntitlements, useUnlockFlow } from '../../services/entitlements'
 
 const TONE_CLASS = {
@@ -50,6 +52,7 @@ const DOT_CLASS = {
 export default function PlanChip({ surface = 'learner', className = '' }) {
   const { planState, chipLabel, chipTone } = useEntitlements()
   const hint = planChipHint(planState)
+  const navigate = useNavigate()
   const { requestUnlock } = useUnlockFlow()
 
   // A premium account with nothing to count down does not need a chip taking
@@ -58,12 +61,23 @@ export default function PlanChip({ surface = 'learner', className = '' }) {
   if (chipTone === 'premium' && planState.status !== 'grace') return null
 
   const tone = surface === 'teacher' && chipTone === 'free' ? 'premium' : chipTone
-  const gate = planState.role === 'teacher' ? 'TEACHER_AI_GEN' : 'PAPER_OPEN'
+  const isTeacher = planState.role === 'teacher'
+
+  // A teacher's plans are Pro / Max on /teacher/subscription. The unlock sheet
+  // only knows the learner ladder (Weekly K15 / Monthly K50), so routing a
+  // teacher through it showed learner prices on the teacher portal.
+  const onClick = () => {
+    if (isTeacher) {
+      navigate('/teacher/subscription')
+      return
+    }
+    requestUnlock('PAPER_OPEN', { screen: 'plan-chip', quota: planState.quotas?.papersThisWeek })
+  }
 
   return (
     <button
       type="button"
-      onClick={() => requestUnlock(gate, { screen: 'plan-chip', quota: planState.quotas?.papersThisWeek })}
+      onClick={onClick}
       className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-black leading-none shadow-none transition-colors ${TONE_CLASS[tone] || TONE_CLASS.neutral} ${className}`}
       title={hint}
       aria-label={`${chipLabel}. ${hint} Tap to see plans.`}
