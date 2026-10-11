@@ -5,6 +5,19 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-10-10
+
+### Fixed
+
+- Re-extract 2013 Civic Education (Gr 10-12) from the source PDF; topic-as-sub-topic safety net (#2737)
+- Draw the plan reminder inside the learner page column, not under the sidebar (#2736)
+- Refuse Play purchases for guardian-declined accounts (#2735)
+- Checkout was clipped inside the unlock sheet; show plans and cost right after the free set (#2733)
+
+### Internal
+
+- Remove the last guardian-ask leftovers (/pricing notice, dead branches) (#2734)
+
 ## 2026-10-09
 
 ### Changed
