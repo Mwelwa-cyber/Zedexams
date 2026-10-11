@@ -292,15 +292,65 @@ export function isGateLocked(planState, gateId, gateRegistry) {
   return true
 }
 
-/** Chip text: `Free · 2 left` / `0 left` / `Grace` / `Premium`. */
-export function planChipLabel(planState) {
+/**
+ * Whole days of grace remaining, rounded up so the last partial day still
+ * reads "1 day left" rather than "0". Null when there is no end to count to.
+ */
+export function graceDaysLeft(planState, now = new Date()) {
+  const ends = toDate(planState?.graceEndsAt)
+  if (!ends) return null
+  const from = toDate(now) || new Date()
+  return Math.max(1, Math.ceil((ends.getTime() - from.getTime()) / MS_PER_DAY))
+}
+
+/**
+ * Chip text: `Free · 2 of 3 left` (teacher) / `Free · 2 left` (learner) /
+ * `0 left` / `Grace · 2 days left` / `Premium`.
+ *
+ * A teacher's chip counts AI generations and says "of N" so the cap is visible
+ * without opening anything; "Grace" alone told nobody what it meant.
+ */
+export function planChipLabel(planState, now = new Date()) {
   if (!planState) return ''
-  if (planState.status === PLAN_STATUS.GRACE) return 'Grace'
+  if (planState.status === PLAN_STATUS.GRACE) {
+    const days = graceDaysLeft(planState, now)
+    if (days == null) return 'Grace'
+    return `Grace · ${days} ${days === 1 ? 'day' : 'days'} left`
+  }
   if (planState.unlocked) return 'Premium'
-  const key = planState.role === 'teacher' ? 'aiGenerationsThisMonth' : 'papersThisWeek'
+  const isTeacher = planState.role === 'teacher'
+  const key = isTeacher ? 'aiGenerationsThisMonth' : 'papersThisWeek'
   const left = quotaLeft(planState, key)
   if (!Number.isFinite(left)) return 'Free'
-  return left > 0 ? `Free · ${left} left` : '0 left'
+  if (left <= 0) return '0 left'
+  const cap = Number(planState.quotas?.[key])
+  return isTeacher && Number.isFinite(cap) && cap > 0
+    ? `Free · ${left} of ${cap} left`
+    : `Free · ${left} left`
+}
+
+/**
+ * Plain-English explanation for the chip's tooltip / screen-reader label.
+ * Says what the state MEANS, and — during grace — what the free plan would
+ * allow afterwards, since the quota is not binding while everything is open.
+ */
+export function planChipHint(planState, now = new Date()) {
+  if (!planState) return ''
+  const isTeacher = planState.role === 'teacher'
+  const freeLine = () => {
+    if (!isTeacher) return ''
+    const cap = Number(planState.quotas?.aiGenerationsThisMonth)
+    if (!Number.isFinite(cap) || cap <= 0) return ''
+    const left = quotaLeft({ ...planState, unlocked: false }, 'aiGenerationsThisMonth')
+    return ` On the free plan you have ${left} of ${cap} AI generations left this month.`
+  }
+  if (planState.status === PLAN_STATUS.GRACE) {
+    const days = graceDaysLeft(planState, now)
+    const when = days == null ? 'for a few more days' : `for ${days} more ${days === 1 ? 'day' : 'days'}`
+    return `Your subscription has ended, but everything still works ${when} while you renew.${freeLine()}`
+  }
+  if (planState.unlocked) return 'Premium: everything is unlocked.'
+  return isTeacher ? 'Free plan: AI generations left this month.' : 'Free plan: papers left this week.'
 }
 
 /** Chip tone, so the header does not re-derive "is this the amber one". */

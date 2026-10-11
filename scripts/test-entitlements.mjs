@@ -222,7 +222,24 @@ test('the chip says what is left, and switches to the warn wording at zero', () 
     role: 'learner', subscriptionPaymentId: 'p', subscriptionPlan: 'monthly',
     subscriptionExpiry: new Date(NOW.getTime() - DAY),
   }, { now: NOW })
-  assert.equal(planChipLabel(grace), 'Grace')
+  // Grace says how long it lasts — the bare word explained nothing.
+  assert.equal(planChipLabel(grace, NOW), 'Grace · 2 days left')
+  const lastDay = resolvePlanState({
+    role: 'learner', subscriptionPaymentId: 'p', subscriptionPlan: 'monthly',
+    subscriptionExpiry: new Date(NOW.getTime() - 2.5 * DAY),
+  }, { now: NOW })
+  assert.equal(planChipLabel(lastDay, NOW), 'Grace · 1 day left')
+})
+
+test('a teacher chip shows used-of-cap generations', () => {
+  const t = resolvePlanState({ role: 'teacher' }, {
+    now: NOW, used: { aiGenerationsThisMonth: 1 }, quotas: { aiGenerationsThisMonth: 3 },
+  })
+  assert.equal(planChipLabel(t), 'Free · 2 of 3 left')
+  const spent = resolvePlanState({ role: 'teacher' }, {
+    now: NOW, used: { aiGenerationsThisMonth: 3 }, quotas: { aiGenerationsThisMonth: 3 },
+  })
+  assert.equal(planChipLabel(spent), '0 left')
 })
 
 test('formatResetDate names a weekday inside the week and a date beyond it', () => {
