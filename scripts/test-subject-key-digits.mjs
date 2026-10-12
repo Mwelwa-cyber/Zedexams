@@ -23,9 +23,11 @@ for (const f of files) {
   lines.forEach((line, i) => {
     if (!/\[\^a-z_\]|\[a-z_\]\+\$/.test(line)) return;
     if (/^\s*(\*|\/\/)/.test(line)) return; // prose may quote the old pattern
-    // The sanitiser's own line, or the continuation of `const subject... =`.
-    const ctx = /subject/i.test(line) ? line : (lines[i - 1] || "") + " " + (lines[i - 2] || "");
-    if (/(subject\w*)\s*(=|:)|(subject\w*)\)?$/i.test(ctx) && !/taskType|component/.test(line)) bad.push(`${f}:${i + 1}: ${line.trim()}`);
+    if (/taskType|component/.test(line)) return; // other vocabularies, no digits
+    // The sanitiser's own line plus up to two lines above it, for chains such
+    // as `const subject = String(x)\n  .toLowerCase()\n  .replace(...)`.
+    const ctx = [lines[i - 2], lines[i - 1], line].join(" ");
+    if (/subject\w*\s*[=:]/i.test(ctx)) bad.push(`${f}:${i + 1}: ${line.trim()}`);
   });
 }
 if (bad.length) {
