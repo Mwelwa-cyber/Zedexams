@@ -28,7 +28,7 @@ const {resolveCbcContext} = require("./cbcKnowledge");
 const {validateLessonPlan} = require("./lessonPlanSchema");
 const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
   require("./lessonPlanPrompt");
-const {assertAndIncrement} = require("./usageMeter");
+const {assertAndIncrement, refundGeneration} = require("./usageMeter");
 const {LEARNING_ENVIRONMENT_VALUES} = require("./learningEnvironments");
 const {SCHOOL_RESOURCE_VALUES} = require("./schoolResources");
 
@@ -153,6 +153,8 @@ function sanitizeInputs(raw = {}) {
   const num = (v, def) => (Number.isFinite(Number(v)) ? Number(v) : def);
 
   const grade = str(raw.grade, 10).toUpperCase().replace(/\s+/g, "");
+  // Digits are kept: religious_education_2044 / _2046 are canonical keys, and
+  // mapping them to "_" made them fail the ALLOWED_SUBJECTS check below.
   const subject = str(raw.subject, 40).toLowerCase().replace(/[^a-z0-9_]/g, "_");
   const language = str(raw.language || "english", 20).toLowerCase();
 
@@ -340,6 +342,14 @@ async function runLessonPlan({uid, rawInputs, apiKey, onProgress}) {
       status: "failed",
       errorMessage: String(err && err.message || err).slice(0, 500),
     }, {merge: true}).catch(() => {});
+    // The quota was charged before the model call; a generation that produced
+    // nothing must not cost the teacher one (as studioLessonPlan.js does).
+    try {
+      await refundGeneration(uid, usage, "lesson_plan");
+    } catch (refundErr) {
+      console.error("[generateLessonPlan] refund failed after generation error",
+          {uid, usage}, refundErr);
+    }
     throw err;
   }
 
