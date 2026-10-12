@@ -6,7 +6,7 @@ import {readdirSync, readFileSync, statSync} from "node:fs";
 import {join} from "node:path";
 
 const roots = ["functions"];
-const skip = new Set(["node_modules", "shared"]);
+const skip = new Set(["node_modules"]);
 const files = [];
 (function walk(dir) {
   for (const name of readdirSync(dir)) {
@@ -21,7 +21,7 @@ const bad = [];
 for (const f of files) {
   const lines = readFileSync(f, "utf8").split("\n");
   lines.forEach((line, i) => {
-    if (!/\[\^a-z_\]|\[a-z_\]\+\$/.test(line)) return;
+    if (!/\[\^a-z_?\]|\[a-z_\]\+\$/.test(line)) return;
     if (/^\s*(\*|\/\/)/.test(line)) return; // prose may quote the old pattern
     if (/taskType|component/.test(line)) return; // other vocabularies, no digits
     // The sanitiser's own line plus up to two lines above it, for chains such

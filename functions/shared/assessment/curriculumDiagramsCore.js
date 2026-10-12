@@ -432,7 +432,7 @@ export function diagramAnswerKey(entry, { board = false } = {}) {
   return visibleParts(entry, board).map((p) => ({ number: p.number, id: p.id, name: p.name }))
 }
 
-const normSubject = (s) => String(s || '').toLowerCase().replace(/[^a-z]/g, '_')
+const normSubject = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '_')
 const normText = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim()
 
 /**

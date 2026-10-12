@@ -361,7 +361,7 @@ function filterGradeSubjectCandidates(allTopics, gradeNorm, subjectNorm) {
 async function lookupTopic({grade, subject, topic, framework}) {
   if (!grade || !subject || !topic) return null;
   const gradeNorm = normalizeGrade(grade);
-  const subjectNorm = String(subject).toLowerCase().replace(/[^a-z]/g, "_");
+  const subjectNorm = String(subject).toLowerCase().replace(/[^a-z0-9]/g, "_");
   const topicNorm = String(topic).toLowerCase().trim();
   const allTopics = await getAllTopics({framework});
   const candidates =
@@ -414,7 +414,7 @@ async function lookupTopic({grade, subject, topic, framework}) {
  */
 async function suggestTopics({grade, subject, framework}) {
   const gradeNorm = normalizeGrade(grade);
-  const subjectNorm = String(subject || "").toLowerCase().replace(/[^a-z]/g, "_");
+  const subjectNorm = String(subject || "").toLowerCase().replace(/[^a-z0-9]/g, "_");
   const allTopics = await getAllTopics({framework});
   return filterGradeSubjectCandidates(allTopics, gradeNorm, subjectNorm)
     .map((t) => t.topic)
@@ -436,7 +436,7 @@ async function suggestTopics({grade, subject, framework}) {
  */
 async function resolveGradeSubjectCoverage({grade, subject, framework} = {}) {
   const gradeNorm = normalizeGrade(grade);
-  const subjectNorm = String(subject || "").toLowerCase().replace(/[^a-z]/g, "_");
+  const subjectNorm = String(subject || "").toLowerCase().replace(/[^a-z0-9]/g, "_");
   let candidates = [];
   try {
     const allTopics = await getAllTopics({framework});
@@ -650,7 +650,7 @@ function slug(s) {
  * compare on the same shape without re-deriving it.
  */
 function normalizeSubject(subject) {
-  return String(subject || "").toLowerCase().replace(/[^a-z]/g, "_");
+  return String(subject || "").toLowerCase().replace(/[^a-z0-9]/g, "_");
 }
 
 // Must match buildTopicId() in importCurriculumModules.js and the client
