@@ -39,7 +39,7 @@ exports.getTermModuleOutline = onCall(
       const grade = String(data.grade || "").toUpperCase()
           .replace(/\s+/g, "").slice(0, 10);
       const subject = String(data.subject || "").toLowerCase()
-          .replace(/[^a-z_]/g, "_").slice(0, 40);
+          .replace(/[^a-z0-9_]/g, "_").slice(0, 40);
       const term = Math.min(3, Math.max(1, Math.round(Number(data.term) || 0)));
 
       if (!ALLOWED_GRADES.has(grade) || !subject || !(term >= 1 && term <= 3)) {

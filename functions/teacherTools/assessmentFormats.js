@@ -209,7 +209,7 @@ function validateFormatProfile(input) {
     errors.push(`gradeBand must be one of: ${GRADE_BANDS.join(", ")}.`);
   }
   const subject = str(input.subject, 60).toLowerCase();
-  if (!subject || !/^[a-z_]+$/.test(subject)) {
+  if (!subject || !/^[a-z0-9_]+$/.test(subject)) {
     errors.push("subject must be a canonical subject key or '_generic'.");
   }
   const label = str(input.label, 120);

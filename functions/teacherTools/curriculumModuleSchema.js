@@ -43,7 +43,7 @@ function normGrade(v) {
 }
 
 function normSubject(v) {
-  return String(v || "").toLowerCase().replace(/[^a-z_]/g, "_").slice(0, 40);
+  return String(v || "").toLowerCase().replace(/[^a-z0-9_]/g, "_").slice(0, 40);
 }
 
 /**

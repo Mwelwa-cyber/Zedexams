@@ -125,7 +125,7 @@ export const ABOVE_GRADE_TERMS = Object.freeze([
   { term: 'latitude and longitude', introducedAt: 'G6', subjects: ['social_studies', 'geography'] },
 ])
 
-const normSubject = (s) => String(s || '').toLowerCase().replace(/[^a-z]/g, '_')
+const normSubject = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '_')
 
 /** Text a scope check can be run over — same flattening as the voice lint. */
 function asText(value) {

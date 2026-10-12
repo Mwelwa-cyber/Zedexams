@@ -73,7 +73,7 @@ function sanitizeInputs(raw = {}) {
   const type = str(raw.type, 16).toLowerCase();
   const text = str(raw.text, 2000);
   const grade = str(raw.grade, 10).toUpperCase().replace(/\s+/g, "");
-  const subject = str(raw.subject, 40).toLowerCase().replace(/[^a-z_]/g, "_");
+  const subject = str(raw.subject, 40).toLowerCase().replace(/[^a-z0-9_]/g, "_");
   const language = str(raw.language || "english", 20).toLowerCase();
 
   // MCQ options — keep at most 6, each ≤ 240 chars (matches studio UI cap).

@@ -186,7 +186,7 @@ function buildDraftFromExtraction({
     return {error: "Pick a valid grade band."};
   }
   const subjectKey = String(subject || "_generic")
-    .toLowerCase().replace(/[^a-z_]/g, "_").slice(0, 60) || "_generic";
+    .toLowerCase().replace(/[^a-z0-9_]/g, "_").slice(0, 60) || "_generic";
 
   const candidate = {
     ...(extracted && typeof extracted === "object" ? extracted : {}),

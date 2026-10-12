@@ -102,7 +102,7 @@ function buildOutlineFromTopics(topics, opts = {}) {
     opts.normalizeGrade ? opts.normalizeGrade(opts.grade) : opts.grade,
   ).toUpperCase();
   const subjectNorm = String(opts.subject || "").toLowerCase()
-      .replace(/[^a-z]/g, "_");
+      .replace(/[^a-z0-9]/g, "_");
 
   const matched = (Array.isArray(topics) ? topics : []).filter((t) =>
     String(t.grade || "").toUpperCase() === gradeNorm &&

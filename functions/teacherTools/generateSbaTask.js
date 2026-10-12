@@ -65,7 +65,7 @@ function sanitizeInputs(raw = {}) {
     v.split(NUL).join("").trim().slice(0, max) : "");
 
   const grade = s(raw.grade, 10).toUpperCase().replace(/\s+/g, "");
-  const subject = s(raw.subject, 48).toLowerCase().replace(/[^a-z_]/g, "_");
+  const subject = s(raw.subject, 48).toLowerCase().replace(/[^a-z0-9_]/g, "_");
   const taskType = s(raw.taskType, 48).toLowerCase().replace(/[^a-z_]/g, "_");
   const component = s(raw.component, 48).toLowerCase().replace(/[^a-z_]/g, "_");
   const language = s(raw.language || "english", 20).toLowerCase();
