@@ -5,6 +5,12 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-10-13
+
+### Internal
+
+- Patch @xmldom/xmldom, @fastify/busboy, fast-uri, brace-expansion, grpc-js (#2747)
+
 ## 2026-10-11
 
 ### Added
