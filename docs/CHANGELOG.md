@@ -5,6 +5,16 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-10-14
+
+### Fixed
+
+- Stop paging CRITICAL on a single transient Cloud Logging 502 (#2755)
+
+### Internal
+
+- Patch @xmldom/xmldom, @fastify/busboy, fast-uri, brace-expansion, grpc-js (#2747)
+
 ## 2026-10-11
 
 ### Added
