@@ -18,6 +18,10 @@ const {
   groupByFunction,
   decideAlerts,
   buildAlertMessage,
+  isTransientQueryFailure,
+  summarizeErrorBody,
+  decideBlindAlert,
+  querySinceMs,
 } = require("./functionErrorWatchCore");
 
 const MIN = 60_000;
@@ -212,6 +216,53 @@ test("CONTROL: without OOM recognition the same window would NOT alert", () => {
   const {alerts} = decideAlerts({entries: unrecognised, state: {}, now: T0});
   assert.strictEqual(alerts.length, 0,
     "control failed: an unrecognised low-count error should raise nothing");
+});
+
+// ── Query failures ─────────────────────────────────────────────────────────
+
+test("transience is opt-in: 5xx/429 or an explicit flag; unknown pages", () => {
+  for (const status of [429, 500, 502, 503, 504]) assert.strictEqual(isTransientQueryFailure({status}), true);
+  for (const status of [400, 401, 403, 404]) assert.strictEqual(isTransientQueryFailure({status}), false);
+  assert.strictEqual(isTransientQueryFailure({transient: true}), true);
+  assert.strictEqual(isTransientQueryFailure({}), false, "an unclassified failure is not tolerated");
+  assert.strictEqual(isTransientQueryFailure({status: 502, permanent: true}), false);
+});
+
+test("an error body becomes one readable line", () => {
+  assert.strictEqual(
+    summarizeErrorBody("<!DOCTYPE html><html><title>Error 502 (Server Error)!!1</title><style>*{}</style>"),
+    "Error 502 (Server Error)!!1");
+  assert.strictEqual(summarizeErrorBody('{"error":{"message":"Permission denied"}}'), "Permission denied");
+  assert.strictEqual(summarizeErrorBody("<p>plain <b>text</b></p>"), "plain text");
+  assert.strictEqual(summarizeErrorBody(""), "");
+});
+
+test("blind: a permanent failure pages on the first run", () => {
+  const d = decideBlindAlert({failure: {status: 403}, heartbeat: {}, now: T0});
+  assert.strictEqual(d.alert, true);
+  assert.strictEqual(d.transient, false);
+});
+
+test("blind: a transient failure pages only on the third consecutive run", () => {
+  let hb = {};
+  const out = [];
+  for (let i = 0; i < 3; i += 1) {
+    const d = decideBlindAlert({failure: {status: 502}, heartbeat: hb, now: T0 + i * 5 * MIN});
+    out.push(d.alert);
+    hb = {consecutiveBlindRuns: d.consecutiveBlindRuns, lastBlindAlertAt: d.lastBlindAlertAt};
+  }
+  assert.deepStrictEqual(out, [false, false, true]);
+  const again = decideBlindAlert({failure: {status: 502}, heartbeat: hb, now: T0 + 15 * MIN});
+  assert.strictEqual(again.alert, false, "cooldown holds");
+  const later = decideBlindAlert({failure: {status: 502}, heartbeat: hb, now: T0 + 75 * MIN});
+  assert.strictEqual(later.alert, true, "a blind spell that lasts keeps saying so");
+});
+
+test("catch-up window: back to the last success, capped", () => {
+  assert.strictEqual(querySinceMs({now: T0, windowMinutes: 7}), T0 - 7 * MIN);
+  assert.strictEqual(querySinceMs({now: T0, windowMinutes: 7, lastSuccessAt: T0 - 5 * MIN}), T0 - 7 * MIN);
+  assert.strictEqual(querySinceMs({now: T0, windowMinutes: 7, lastSuccessAt: T0 - 20 * MIN}), T0 - 20 * MIN);
+  assert.strictEqual(querySinceMs({now: T0, windowMinutes: 7, lastSuccessAt: T0 - 600 * MIN}), T0 - 60 * MIN);
 });
 
 (async () => {

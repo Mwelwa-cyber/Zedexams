@@ -20,6 +20,8 @@ const {
   STATE_DOC,
   HEARTBEAT_DOC,
   GAP_ALERT_MS,
+  fetchErrorEntries,
+  WINDOW_MINUTES,
 } = require("./functionErrorWatch");
 
 const T0 = 1_754_700_000_000;
@@ -220,6 +222,135 @@ test('the heartbeat doc is SEPARATE from the streak state', async () => {
   });
   assert.deepStrictEqual(db._store.doc, {functions: {f: {consecutiveElevatedWindows: 1}}});
   assert.ok(db._store.heartbeat?.checkedAt, 'but the run was still recorded');
+});
+
+// ── Transient failures: the 2026-10-14 502 ─────────────────────────────────
+//
+// Google's front end answered entries:list with a 502 HTML page once, and the
+// watch paged CRITICAL with the raw HTML and a permissions diagnosis that was
+// wrong. A transient error is retried, tolerated for a couple of runs, and
+// only pages if it persists.
+
+const GOOGLE_502 = `<!DOCTYPE html>
+<html lang=en>
+  <meta charset=utf-8>
+  <meta name=viewport content="initial-scale=1, minimum-scale=1, width=device-width">
+  <title>Error 502 (Server Error)!!1</title>
+  <style>*{margin:0;padding:0}html,code{font:15px/22px arial,sans-serif}</style>
+  <p><b>502.</b> That's an error.`;
+
+const fakeAuth = {getAccessToken: async () => "tok"};
+const response = (status, body) => ({
+  ok: status >= 200 && status < 300,
+  status,
+  text: async () => body,
+  json: async () => JSON.parse(body),
+});
+
+test("a 502 is retried inside the run, and a recovery returns entries", async () => {
+  const calls = [];
+  const replies = [response(502, GOOGLE_502), response(200, JSON.stringify({entries: [
+    {resource: {labels: {service_name: "f"}}, textPayload: "boom", severity: "ERROR"},
+  ]}))];
+  const entries = await fetchErrorEntries({
+    projectId: "p", sinceIso: "x", auth: fakeAuth,
+    fetchImpl: async () => { calls.push(1); return replies.shift(); },
+    sleepFn: async () => {},
+  });
+  assert.strictEqual(calls.length, 2, "one retry");
+  assert.strictEqual(entries.length, 1);
+});
+
+test("a persistent 502 throws a SHORT reason carrying the status — no HTML", async () => {
+  let calls = 0;
+  const err = await fetchErrorEntries({
+    projectId: "p", sinceIso: "x", auth: fakeAuth,
+    fetchImpl: async () => { calls += 1; return response(502, GOOGLE_502); },
+    sleepFn: async () => {},
+  }).catch((e) => e);
+  assert.strictEqual(calls, 3, "first try + two retries");
+  assert.strictEqual(err.status, 502);
+  assert.ok(err.message.includes("Error 502 (Server Error)"), err.message);
+  assert.ok(!err.message.includes("<"), `no markup in the alert: ${err.message}`);
+});
+
+test("a 403 is NOT retried — retrying cannot fix a missing role", async () => {
+  let calls = 0;
+  const err = await fetchErrorEntries({
+    projectId: "p", sinceIso: "x", auth: fakeAuth,
+    fetchImpl: async () => {
+      calls += 1;
+      return response(403, JSON.stringify({error: {message: "Permission denied"}}));
+    },
+    sleepFn: async () => {},
+  }).catch((e) => e);
+  assert.strictEqual(calls, 1);
+  assert.strictEqual(err.status, 403);
+  assert.ok(err.message.includes("Permission denied"));
+});
+
+const err502 = () => Object.assign(new Error("Cloud Logging entries:list 502: Error 502"), {status: 502});
+
+test("one transient blind run does NOT page, but is still recorded as blind", async () => {
+  const db = fakeDb();
+  const {sent, fn} = collectAlerts();
+  const r = await runFunctionErrorWatch({
+    db, now: T0, sendOpsAlert: fn, fetchErrorEntries: async () => { throw err502(); },
+  });
+  assert.strictEqual(sent.length, 0, "a single 502 must not page");
+  assert.strictEqual(r.blind, true);
+  assert.strictEqual(r.ok, false, "never reported as a clean run");
+  assert.strictEqual(db._store.heartbeat.outcome, "blind");
+  assert.strictEqual(db._store.heartbeat.consecutiveBlindRuns, 1);
+});
+
+test("a transient failure that PERSISTS pages, then respects its cooldown", async () => {
+  const db = fakeDb();
+  const {sent, fn} = collectAlerts();
+  const fail = async () => { throw err502(); };
+  for (let i = 0; i < 3; i += 1) {
+    await runFunctionErrorWatch({db, now: T0 + i * 5 * 60_000, sendOpsAlert: fn, fetchErrorEntries: fail});
+  }
+  assert.strictEqual(sent.length, 1, "third consecutive blind run pages");
+  assert.ok(sent[0].title.includes("BLIND"));
+  const body = sent[0].lines.join("\n");
+  assert.ok(body.includes("3 runs in a row"));
+  assert.ok(body.includes("UNKNOWN"));
+  assert.ok(!body.includes("roles/logging.viewer"), "a 502 is not a permissions problem");
+
+  await runFunctionErrorWatch({db, now: T0 + 15 * 60_000, sendOpsAlert: fn, fetchErrorEntries: fail});
+  assert.strictEqual(sent.length, 1, "no repeat page every 5 minutes");
+});
+
+test("a successful run resets the blind streak", async () => {
+  const db = fakeDb({heartbeat: {checkedAt: new Date(T0).toISOString(), consecutiveBlindRuns: 2}});
+  const {fn} = collectAlerts();
+  await runFunctionErrorWatch({db, now: T0 + 5 * 60_000, sendOpsAlert: fn, fetchErrorEntries: async () => []});
+  assert.strictEqual(db._store.heartbeat.consecutiveBlindRuns, 0);
+  assert.ok(db._store.heartbeat.lastSuccessAt);
+});
+
+test("after blind runs, the next good run reads back over the window they missed", async () => {
+  const lastGood = T0 - 15 * 60_000;
+  const db = fakeDb({heartbeat: {
+    checkedAt: new Date(T0 - 5 * 60_000).toISOString(),
+    lastSuccessAt: new Date(lastGood).toISOString(),
+    consecutiveBlindRuns: 2,
+  }});
+  const {fn} = collectAlerts();
+  let since = null;
+  await runFunctionErrorWatch({
+    db, now: T0, sendOpsAlert: fn,
+    fetchErrorEntries: async ({sinceIso}) => { since = sinceIso; return []; },
+  });
+  assert.strictEqual(since, new Date(lastGood).toISOString(), "nothing the blind runs skipped is lost");
+
+  // And on a normal cadence the window is the ordinary one.
+  await runFunctionErrorWatch({
+    db, now: T0 + 5 * 60_000, sendOpsAlert: fn,
+    fetchErrorEntries: async ({sinceIso}) => { since = sinceIso; return []; },
+  });
+  assert.strictEqual(since, new Date(T0 + 5 * 60_000 - WINDOW_MINUTES * 60_000).toISOString());
 });
 
 (async () => {

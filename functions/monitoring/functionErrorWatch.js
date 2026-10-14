@@ -50,7 +50,14 @@
 const {getFirestore} = require("firebase-admin/firestore");
 
 const {sendOpsAlert} = require("../opsAlert");
-const {decideAlerts, buildAlertMessage} = require("./functionErrorWatchCore");
+const {
+  decideAlerts,
+  buildAlertMessage,
+  decideBlindAlert,
+  isTransientQueryFailure,
+  querySinceMs,
+  summarizeErrorBody,
+} = require("./functionErrorWatchCore");
 
 /** Where the between-runs state lives. Server-only in firestore.rules. */
 const STATE_DOC = "opsMonitorState/functionErrors";
@@ -119,38 +126,92 @@ function messageOf(entry) {
   return "";
 }
 
+/** Backoff before each retry of a transient failure, inside one run. The
+ * schedule's timeout is 120s, so the whole ladder stays well under it. */
+const RETRY_DELAYS_MS = [1_000, 4_000];
+/** Per-request ceiling, so one hung request cannot eat the run's timeout. */
+const REQUEST_TIMEOUT_MS = 25_000;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** An Error carrying the HTTP status, so the caller can tell 403 from 502. */
+function queryError(message, {status = null, permanent = false, transient = false} = {}) {
+  const err = new Error(message);
+  err.status = status;
+  err.permanent = permanent;
+  err.transient = transient;
+  return err;
+}
+
 /**
  * Fetch ERROR-and-above entries for the window. Throws on failure — the caller
  * turns that into an alert rather than a silent zero.
+ *
+ * Transient failures (5xx, 429, a dropped connection) are retried here before
+ * they count as a failed run; a configuration failure (401/403/400/404) is
+ * thrown at once, since retrying cannot change it.
  */
-async function fetchErrorEntries({projectId, sinceIso, auth, fetchImpl = fetch, pageSize = 500}) {
+async function fetchErrorEntries({
+  projectId, sinceIso, auth, fetchImpl = fetch, pageSize = 500,
+  retryDelaysMs = RETRY_DELAYS_MS, sleepFn = sleep,
+}) {
   // Deferred require: see the module header.
   const {GoogleAuth} = require("google-auth-library");
   const client = auth ?? new GoogleAuth({scopes: [SCOPE]});
   const token = await client.getAccessToken();
   const accessToken = typeof token === "string" ? token : token?.token;
-  if (!accessToken) throw new Error("could not obtain an access token for Cloud Logging");
-
-  const res = await fetchImpl(LOGGING_ENDPOINT, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      resourceNames: [`projects/${projectId}`],
-      filter: buildFilter(sinceIso),
-      orderBy: "timestamp desc",
-      pageSize,
-    }),
-  });
-
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`Cloud Logging entries:list ${res.status}: ${body.slice(0, 300)}`);
+  if (!accessToken) {
+    throw queryError("could not obtain an access token for Cloud Logging", {permanent: true});
   }
 
-  const data = await res.json();
+  const request = async () => {
+    let res;
+    try {
+      res = await fetchImpl(LOGGING_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          resourceNames: [`projects/${projectId}`],
+          filter: buildFilter(sinceIso),
+          orderBy: "timestamp desc",
+          pageSize,
+        }),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+    } catch (err) {
+      // No HTTP answer at all — network, DNS, timeout. Transient.
+      throw queryError(`Cloud Logging entries:list request failed: ${err?.message || err}`,
+        {transient: true});
+    }
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      const detail = summarizeErrorBody(body);
+      throw queryError(
+        `Cloud Logging entries:list ${res.status}${detail ? `: ${detail}` : ""}`,
+        {status: res.status},
+      );
+    }
+    return res.json();
+  };
+
+  let data;
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      data = await request();
+      break;
+    } catch (err) {
+      if (!isTransientQueryFailure(err) || attempt >= retryDelaysMs.length) {
+        err.attempts = attempt + 1;
+        throw err;
+      }
+      console.warn(`[functionErrorWatch] ${err.message} — retrying (${attempt + 1}/${retryDelaysMs.length})`);
+      await sleepFn(retryDelaysMs[attempt]);
+    }
+  }
+
   return (data.entries ?? []).map((e) => ({
     functionName: functionNameOf(e),
     message: messageOf(e),
@@ -181,28 +242,40 @@ async function runFunctionErrorWatch(deps = {}) {
 
   // Read BEFORE the run so a gap is measured against the previous completion.
   let previousRunAt = null;
+  let heartbeat = {};
   try {
     const hb = await heartbeatRef.get();
-    const prev = hb.exists ? Date.parse(hb.data()?.checkedAt ?? "") : NaN;
+    heartbeat = (hb.exists ? hb.data() : null) ?? {};
+    const prev = Date.parse(heartbeat.checkedAt ?? "");
     if (Number.isFinite(prev)) previousRunAt = prev;
   } catch { /* no heartbeat yet, or unreadable — treated as "no previous run" */ }
+  const lastSuccessAt = Date.parse(heartbeat.lastSuccessAt ?? "");
 
   /** Stamp the run. `checkedAt` is one of opsHeartbeatCore's TS_FIELDS. */
-  const stampHeartbeat = async (outcome) => {
+  const stampHeartbeat = async (outcome, extra = {}) => {
     try {
       await heartbeatRef.set({
         checkedAt: new Date(now).toISOString(),
         outcome,
+        ...extra,
       }, {merge: true});
     } catch (err) {
       console.error("[functionErrorWatch] heartbeat write failed:", err?.message || err);
     }
   };
 
-  const sinceIso = new Date(now - WINDOW_MINUTES * 60_000).toISOString();
+  // After blind runs, read back to the last run that could see, so the window
+  // they skipped is still checked.
+  const sinceMs = querySinceMs({
+    now,
+    windowMinutes: WINDOW_MINUTES,
+    lastSuccessAt: Number.isFinite(lastSuccessAt) ? lastSuccessAt : null,
+  });
+  const sinceIso = new Date(sinceMs).toISOString();
 
   let entries;
   let queryFailed = null;
+  let queryFailure = null;
   if (deps.injectedEntries) {
     entries = deps.injectedEntries;
   } else {
@@ -212,31 +285,55 @@ async function runFunctionErrorWatch(deps = {}) {
       });
     } catch (err) {
       queryFailed = err?.message || String(err);
+      queryFailure = err;
       entries = [];
     }
   }
 
-  // A monitor that cannot see must say so. Reporting "0 errors" here would be
-  // the same false green that let 80 errors pass unnoticed.
+  // A monitor that cannot see must say so — but a single 502 from Google's
+  // front end is not "cannot see", it is "could not see for one request".
+  // Transient failures page only once they persist (decideBlindAlert); until
+  // then the run is still recorded as blind, and the next successful run reads
+  // back over the window this one missed. A configuration failure (403 etc.)
+  // pages immediately, as before.
   if (queryFailed) {
-    await alertFn({
-      title: "Cloud Functions monitoring is BLIND",
-      severity: "critical",
-      lines: [
-        "The error watch could not read Cloud Logging, so this run checked nothing.",
-        `Reason: ${queryFailed}`,
-        "Treat backend health as UNKNOWN until this is fixed — not as healthy.",
-        "Likely causes: the functions service account lacks roles/logging.viewer,",
-        "or the Logging API is disabled for the project.",
-      ],
-      smtpUser: process.env.EMAIL_SMTP_USER,
-      smtpPassword: process.env.EMAIL_SMTP_PASSWORD,
-      opsAlertEmails: process.env.OPS_ALERT_EMAILS,
-      adminEmails: process.env.ADMIN_EMAILS,
-      webhookUrl: process.env.OPS_ALERT_WEBHOOK_URL,
+    const blind = decideBlindAlert({failure: queryFailure ?? {}, heartbeat, now});
+    if (blind.alert) {
+      const minutes = blind.consecutiveBlindRuns * 5;
+      await alertFn({
+        title: "Cloud Functions monitoring is BLIND",
+        severity: "critical",
+        lines: [
+          "The error watch could not read Cloud Logging, so this run checked nothing.",
+          `Reason: ${queryFailed}`,
+          ...(blind.transient ? [
+            `This is a temporary-looking error, but it has now failed ` +
+            `${blind.consecutiveBlindRuns} runs in a row (~${minutes} minutes, retried each time).`,
+            "Treat backend health as UNKNOWN until this is fixed — not as healthy.",
+            "Likely cause: a Cloud Logging API outage (check status.cloud.google.com).",
+            "The watch will read back over the missed window once it can see again.",
+          ] : [
+            "Treat backend health as UNKNOWN until this is fixed — not as healthy.",
+            "Likely causes: the functions service account lacks roles/logging.viewer,",
+            "or the Logging API is disabled for the project.",
+          ]),
+        ],
+        smtpUser: process.env.EMAIL_SMTP_USER,
+        smtpPassword: process.env.EMAIL_SMTP_PASSWORD,
+        opsAlertEmails: process.env.OPS_ALERT_EMAILS,
+        adminEmails: process.env.ADMIN_EMAILS,
+        webhookUrl: process.env.OPS_ALERT_WEBHOOK_URL,
+      });
+    } else {
+      console.warn(`[functionErrorWatch] blind run ${blind.consecutiveBlindRuns} ` +
+        `(transient, not paging yet): ${queryFailed}`);
+    }
+    await stampHeartbeat("blind", {
+      consecutiveBlindRuns: blind.consecutiveBlindRuns,
+      lastBlindAlertAt: blind.lastBlindAlertAt,
+      lastBlindReason: String(queryFailed).slice(0, 300),
     });
-    await stampHeartbeat("blind");
-    return {ok: false, blind: true, reason: queryFailed};
+    return {ok: false, blind: true, alerted: blind.alert, transient: blind.transient, reason: queryFailed};
   }
 
   const prevSnap = await stateRef.get().catch(() => null);
@@ -282,7 +379,11 @@ async function runFunctionErrorWatch(deps = {}) {
     });
   }
 
-  await stampHeartbeat(message ? "alerted" : "clean");
+  await stampHeartbeat(message ? "alerted" : "clean", {
+    lastSuccessAt: new Date(now).toISOString(),
+    consecutiveBlindRuns: 0,
+    ...(sinceMs < now - WINDOW_MINUTES * 60_000 ? {lastCatchUpFrom: sinceIso} : {}),
+  });
 
   console.log(`[functionErrorWatch] ${JSON.stringify({
     ...summary, alerts: alerts.length, gapMinutes: gapMs == null ? null : Math.round(gapMs / 60000),
@@ -300,4 +401,5 @@ module.exports = {
   messageOf,
   STATE_DOC,
   WINDOW_MINUTES,
+  RETRY_DELAYS_MS,
 };
