@@ -2092,7 +2092,14 @@ failure is never reported as "no errors."** An unreadable log window alerts that
 monitoring is BLIND and reports health UNKNOWN, because a tool that cannot see a
 failure reporting silence is the bug, not the fix. A blind run also leaves the
 state document untouched, so a failed read cannot reset every streak and
-cooldown.
+cooldown. **But a transient read failure is not blindness (2026-10).** A 5xx/429 or
+dropped connection is retried inside the run (1s, 4s) and pages only after
+three consecutive blind runs (~15 min), with a 60-minute cooldown; the next
+successful run reads back to the last one that could see (capped at 60 min),
+so the skipped window is still checked. A 401/403/400/404 or any UNCLASSIFIED
+failure still pages on the first run. The reason is summarised to one line
+(an HTML error page used to be pasted in whole). Rules:
+`decideBlindAlert` / `querySinceMs` in `functionErrorWatchCore.js`.
 
 **Proving it end-to-end:** `sendTestFunctionErrorAlert` (admin drill, wired into
 the `/admin` OpsAlertTester panel) injects a synthetic memory kill and runs the

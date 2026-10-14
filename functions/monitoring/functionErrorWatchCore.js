@@ -260,6 +260,130 @@ function buildAlertMessage(alerts, summary = {}) {
   return {title, lines, severity};
 }
 
+// ── When the log query itself fails ────────────────────────────────────────
+//
+// A failed query used to page CRITICAL on the very first occurrence, whatever
+// the cause. That conflated two different facts: a 403 (the service account
+// lost roles/logging.viewer) is permanent and every run until someone fixes it
+// is blind, while a 502 from the Logging front end is Google's load balancer
+// hiccupping and is usually gone by the next request. Paging on the second kind
+// trains the reader to ignore the first — the "alert nobody reads" this module
+// is careful about everywhere else.
+//
+// So: transient failures are retried inside the run, and only page when they
+// persist across BLIND_ALERT_AFTER_RUNS consecutive runs. Nothing goes unwatched
+// in the meantime: the next successful run widens its query back to the last
+// successful one (`querySinceMs`), so the window a transient failure skipped is
+// still checked — just a few minutes late.
+
+/** HTTP statuses that mean "try again", not "you are misconfigured". */
+const TRANSIENT_STATUSES = Object.freeze([408, 429, 500, 502, 503, 504]);
+
+const BLIND_DEFAULTS = Object.freeze({
+  /** Consecutive transient-blind runs before paging (3 × 5min = 15min). */
+  blindAlertAfterRuns: 3,
+  /** Minutes before a continuing blind spell may page again. */
+  blindCooldownMinutes: 60,
+  /** Furthest back a catch-up query reaches after blind runs. */
+  maxCatchUpMinutes: 60,
+});
+
+/**
+ * Is this failure worth retrying / tolerating for a run or two?
+ *
+ * Opt-in, never assumed: only an HTTP status on the list, or a failure the
+ * fetcher explicitly marked `transient` (no HTTP answer at all — reset, DNS,
+ * timeout), qualifies. Anything else — 400/401/403/404, or an error nobody
+ * classified — pages immediately, because an unknown failure tolerated
+ * silently is exactly the false green this watch exists to prevent.
+ *
+ * @param {{status?: number, transient?: boolean, permanent?: boolean}} failure
+ * @return {boolean}
+ */
+function isTransientQueryFailure(failure) {
+  if (failure?.permanent) return false;
+  if (failure?.transient === true) return true;
+  return TRANSIENT_STATUSES.includes(Number(failure?.status));
+}
+
+/**
+ * Reduce an error response body to one readable line.
+ *
+ * Google's front end answers a 502 with a full HTML page, which used to land
+ * in the alert verbatim — a screenful of `<meta>` and inline CSS on a phone.
+ * Prefer the JSON error message, then the HTML <title>, then the text with
+ * tags stripped.
+ *
+ * @param {string} body
+ * @param {number} [max]
+ * @return {string}
+ */
+function summarizeErrorBody(body, max = 200) {
+  const text = String(body ?? "").trim();
+  if (!text) return "";
+  try {
+    const parsed = JSON.parse(text);
+    const msg = parsed?.error?.message ?? parsed?.message;
+    if (msg) return String(msg).slice(0, max);
+  } catch { /* not JSON */ }
+  const title = text.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  if (title) return title[1].replace(/\s+/g, " ").trim().slice(0, max);
+  return text
+    .replace(/<(style|script)[^>]*>[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, max);
+}
+
+/**
+ * Decide whether a blind run pages, and what the heartbeat should remember.
+ *
+ * @param {object} input
+ * @param {{status?: number, permanent?: boolean}} input.failure
+ * @param {object} [input.heartbeat]  Previous heartbeat doc.
+ * @param {number} input.now          Epoch ms.
+ * @param {object} [input.config]
+ * @return {{alert: boolean, transient: boolean, consecutiveBlindRuns: number,
+ *   lastBlindAlertAt: number|null}}
+ */
+function decideBlindAlert({failure, heartbeat = {}, now, config = {}} = {}) {
+  const cfg = {...BLIND_DEFAULTS, ...config};
+  const transient = isTransientQueryFailure(failure);
+  const consecutiveBlindRuns = Number(heartbeat?.consecutiveBlindRuns ?? 0) + 1;
+  const prevAlertAt = heartbeat?.lastBlindAlertAt ?? null;
+  const persisted = !transient || consecutiveBlindRuns >= cfg.blindAlertAfterRuns;
+  const alert = persisted && cooledDown(prevAlertAt, now, cfg.blindCooldownMinutes);
+  return {
+    alert,
+    transient,
+    consecutiveBlindRuns,
+    lastBlindAlertAt: alert ? now : (prevAlertAt ?? null),
+  };
+}
+
+/**
+ * Where a successful run should start reading from.
+ *
+ * Normally the fixed window. After blind runs, back to the last SUCCESSFUL
+ * run, so what the blind runs could not read is read now — capped, so a long
+ * outage does not turn into one enormous query.
+ *
+ * @param {object} input
+ * @param {number} input.now
+ * @param {number} input.windowMinutes
+ * @param {number|null} [input.lastSuccessAt]
+ * @param {object} [input.config]
+ * @return {number} Epoch ms.
+ */
+function querySinceMs({now, windowMinutes, lastSuccessAt = null, config = {}} = {}) {
+  const cfg = {...BLIND_DEFAULTS, ...config};
+  const normal = now - windowMinutes * 60_000;
+  const last = Number(lastSuccessAt);
+  if (!Number.isFinite(last) || last <= 0 || last >= normal) return normal;
+  return Math.max(last, now - cfg.maxCatchUpMinutes * 60_000);
+}
+
 module.exports = {
   OOM_PATTERNS,
   DEFAULTS,
@@ -267,4 +391,10 @@ module.exports = {
   groupByFunction,
   decideAlerts,
   buildAlertMessage,
+  TRANSIENT_STATUSES,
+  BLIND_DEFAULTS,
+  isTransientQueryFailure,
+  summarizeErrorBody,
+  decideBlindAlert,
+  querySinceMs,
 };
