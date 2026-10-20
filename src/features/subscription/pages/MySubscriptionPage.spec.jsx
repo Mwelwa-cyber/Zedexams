@@ -13,7 +13,7 @@ import { render, screen } from '@testing-library/react'
 
 vi.mock('../../../hooks/useSubscriptionReminder', () => ({ useSubscriptionReminder: vi.fn() }))
 vi.mock('../../../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
-let mockRouteState = null
+const mockRouteState = null
 vi.mock('react-router-dom', () => ({
   useNavigate: () => vi.fn(),
   useLocation: () => ({ state: mockRouteState }),

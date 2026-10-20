@@ -28,12 +28,19 @@ export default function RichContent({ value, className = '', fallback = null }) 
     const parsed = parseTiptapValue(value)
     if (!parsed) return
 
+    // Cancelled on unmount / value change: the import resolves and the timer
+    // fires asynchronously, and without this they ran against an unmounted
+    // component (or, in tests, a torn-down jsdom — `document is not defined`).
+    let cancelled = false
+    let timer = null
     import('./utils/safeRender.js').then(({ toHTML, hydrateKatex }) => {
+      if (cancelled) return
       const rendered = toHTML(parsed)
       if (rendered && rendered !== '<p></p>') {
         setHtml(rendered)
         // Hydrate after next paint so the DOM is ready
-        setTimeout(() => {
+        timer = setTimeout(() => {
+          if (cancelled) return
           const container = document.querySelector('[data-rich-content-pending]')
           if (container) {
             container.removeAttribute('data-rich-content-pending')
@@ -42,6 +49,10 @@ export default function RichContent({ value, className = '', fallback = null }) 
         }, 0)
       }
     }).catch(() => {})
+    return () => {
+      cancelled = true
+      if (timer) clearTimeout(timer)
+    }
   }, [value])
 
   if (!value) return fallback

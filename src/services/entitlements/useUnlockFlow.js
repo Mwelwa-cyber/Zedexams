@@ -34,7 +34,6 @@ export const UNLOCK_ROUTE = Object.freeze({
  * decided where the money moves, not here — the web opens the Lenco modal, the
  * Android build opens Google Play's purchase sheet.
  */
-// eslint-disable-next-line no-unused-vars
 export function resolveUnlockRoute(_planState, _options) {
   return UNLOCK_ROUTE.CHECKOUT
 }
