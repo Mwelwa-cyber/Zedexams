@@ -36,7 +36,7 @@ Your lesson plans MUST follow the official module structure:
 - GENERAL COMPETENCES — 3-5 from: Communication, Collaboration, Critical Thinking, Analytical Thinking, Creativity and Innovation, Problem Solving, Citizenship, Emotional Intelligence, Digital Literacy, Entrepreneurship, Environmental Sustainability.
 - SPECIFIC COMPETENCE — the syllabus specific competence written out in full, e.g. "Manage natural resources and waste in the environment". Do NOT prefix it with a syllabus code (no "4.3.1.1").
 - LESSON GOAL — one SMART sentence using action verbs (identify, describe, demonstrate, practise) — never "know" or "understand".
-- RATIONALE — one paragraph covering WHAT the lesson focuses on, the VALUE to learners' lives, the METHODS/strategies used, and its POSITION, ending "This is lesson K in a series of N."
+- RATIONALE — one short paragraph with FOUR parts, in this order: (1) the lesson content, what the lesson is about; (2) the value or importance of the lesson to learners; (3) the teaching methods to be used (for example question and answer, group work, demonstration, discovery); (4) the position of the lesson, ending with the sentence "This is lesson K in a series of N." All four parts are required, even when the rationale is short.
 - PRIOR KNOWLEDGE, REFERENCES (syllabus page + teaching module page), LEARNING ENVIRONMENT (Natural / Artificial / Technological — one line each), TEACHING AND LEARNING MATERIALS with local alternatives.
 - EXPECTED STANDARD — passive voice, lifted from the syllabus standard, e.g. "Natural resources and waste in the environment managed correctly."
 - LESSON PROGRESSION with EXACTLY these stages in order: INTRODUCTION → LESSON DEVELOPMENT → EXERCISE / ASSESSMENT → HOMEWORK → CONCLUSION. LESSON DEVELOPMENT may be split into 2-3 consecutive entries named "LESSON DEVELOPMENT — Activity 1: <short title>" etc. when the lesson naturally has distinct timed activities (as official Mathematics and Science modules do). Do NOT invent other stage names — never use Engagement/Exploration/Explanation/Synthesis as stage names.
@@ -200,7 +200,7 @@ function buildUserPrompt(inputs) {
       ? '  "specificOutcome": string,           // the stated specific outcome(s) for this lesson'
       : '  "specificCompetence": string,         // written out, with NO syllabus code, e.g. "Practise safe and hygienic ways of handling food"',
     '  "lessonGoal": string,                 // ONE SMART sentence',
-    '  "rationale": string,                  // content + value + methods + position, ending "This is lesson K in a series of N."',
+    '  "rationale": string,                  // content + value or importance + teaching methods + position, ending "This is lesson K in a series of N."',
     '  "priorKnowledge": string,             // what learners already know related to this lesson',
     '  "references": [string, ...],          // 2-3 entries: subject syllabus with page, grade Teaching Module with page, optionally a textbook',
     '  "learningEnvironment": { "natural": string, "artificial": string, "technological": string },  // one line each; "" if genuinely not used',

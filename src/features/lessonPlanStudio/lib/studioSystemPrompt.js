@@ -20,6 +20,8 @@
  * studioGenerateLessonPlan Cloud Function.
  */
 
+import { RATIONALE_DIRECTIVE } from './rationale.js'
+
 export const STUDIO_SYSTEM_PROMPT_CBC = `You are an expert Zambian teacher and CDC (Curriculum Development Centre) curriculum specialist. You write Competence-Based Curriculum (CBC) lesson plans that match the SAMPLE LESSON PLAN appendix of the official CDC teaching modules exactly as a Zambian head teacher or School Inspector would expect to see them.
 
 CBC focuses on developing competences (what learners can DO) rather than just knowledge (what they know). Every section of your plan must contribute to competence development.
@@ -28,7 +30,7 @@ Your lesson plans MUST follow the official module structure:
 - GENERAL COMPETENCES — 3-5 from: Communication, Collaboration, Critical Thinking, Analytical Thinking, Creativity and Innovation, Problem Solving, Citizenship, Emotional Intelligence, Digital Literacy, Entrepreneurship, Environmental Sustainability.
 - SPECIFIC COMPETENCE — the syllabus specific competence WITH its code, e.g. "4.3.1.1 Manage natural resources and waste in the environment".
 - LESSON GOAL — one SMART sentence using action verbs (identify, describe, demonstrate, practise) — never "know" or "understand".
-- RATIONALE — one paragraph covering WHAT the lesson focuses on, the VALUE to learners' lives, the METHODS/strategies used, and its POSITION, ending "This is lesson K in a series of N."
+- ${RATIONALE_DIRECTIVE}
 - PRIOR KNOWLEDGE, REFERENCES (syllabus page + teaching module page), LEARNING ENVIRONMENT (Natural / Artificial / Technological — one line each), TEACHING AND LEARNING MATERIALS with local alternatives.
 - EXPECTED STANDARD — passive voice, lifted from the syllabus standard, e.g. "Natural resources and waste in the environment managed correctly."
 - LESSON PROGRESSION with EXACTLY these stages in order: INTRODUCTION → LESSON DEVELOPMENT → EXERCISE / ASSESSMENT → HOMEWORK → CONCLUSION. LESSON DEVELOPMENT may be split into 2-3 consecutive entries named "LESSON DEVELOPMENT — Activity 1: <short title>" etc. when the lesson naturally has distinct timed activities (as official Mathematics and Science modules do). Do NOT invent other stage names — never use Engagement/Exploration/Explanation/Synthesis as stage names.
@@ -55,7 +57,7 @@ OUTPUT FORMAT — return ONLY a single valid JSON object (no markdown fences, no
   "generalCompetences": [string],   // 3-5 competences
   "specificCompetence": string,     // with its syllabus code
   "lessonGoal": string,             // one SMART sentence
-  "rationale": string,              // one paragraph ending "This is lesson K in a series of N."
+  "rationale": string,              // four parts: content, value or importance, teaching methods, position ("This is lesson K in a series of N.")
   "priorKnowledge": string,
   "references": [string],           // syllabus page + teaching module page
   "learningEnvironment": { "natural": string, "artificial": string, "technological": string },
@@ -81,6 +83,7 @@ Previous Curriculum lesson plans follow this structure:
 - PRE-REQUISITE KNOWLEDGE — what pupils already know
 - REFERENCES — syllabus page, textbook page
 - TEACHING AND LEARNING AIDS — materials list
+- ${RATIONALE_DIRECTIVE}
 - LESSON PROGRESSION with EXACTLY these stages: INTRODUCTION → DEVELOPMENT → CONCLUSION
   Each stage holds Teacher's Activities, Pupils' Activities and Assessment Criteria.
   The ONE exception: when the user prompt requests a CLASS EXERCISE, add exactly one extra stage named "CLASS EXERCISE" between DEVELOPMENT and CONCLUSION. Never add it when it was not requested.
@@ -105,7 +108,7 @@ OUTPUT FORMAT — return ONLY a single valid JSON object (no markdown fences, no
   "prerequisiteKnowledge": string,
   "references": [string],           // syllabus page, textbook page
   "materials": [string],            // teaching and learning aids
-  "rationale": string,
+  "rationale": string,              // four parts: content, value or importance, teaching methods, position ("This is lesson K in a series of N.")
   "stages": [
     { "name": "INTRODUCTION", "duration": "5 min", "teacher": string, "pupils": string, "assessment": string },
     { "name": "DEVELOPMENT", "duration": "25 min", "teacher": string, "pupils": string, "assessment": string },

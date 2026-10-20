@@ -150,7 +150,7 @@ export function useStudioState() {
   // Sidebar passes the field name as the first argument; route to the right updater.
   const setTopicField = useCallback((field, value) => {
     if (field === 'topic') {
-      setTopicData((prev) => ({ ...prev, topic: value, subtopic: '', subtopicRow: null }))
+      setTopicData((prev) => ({ ...prev, topic: value, subtopic: '', subtopicRow: null, focusActivities: [] }))
       setSelectedOutcomes([])
     } else {
       // Bail out when the value is unchanged so repeat calls return the SAME

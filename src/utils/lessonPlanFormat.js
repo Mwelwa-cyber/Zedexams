@@ -151,7 +151,9 @@ export function defaultSections(pageBudget) {
  */
 export const WORD_BUDGETS = {
   1: {
-    rationale: 20,
+    // Room for the rationale's four required parts (content, value or
+    // importance, teaching methods, position): fewer words dropped some.
+    rationale: 35,
     lessonGoal: 20,
     priorKnowledge: 15,
     teacher: 20,
@@ -163,7 +165,7 @@ export const WORD_BUDGETS = {
     expectedAnswers: false,
   },
   2: {
-    rationale: 35,
+    rationale: 50,
     lessonGoal: 30,
     priorKnowledge: 25,
     teacher: 40,

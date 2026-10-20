@@ -26,6 +26,8 @@ import { normalizePlanShape } from '../lib/planShape'
 import { cleanSubjectName } from '../../../shared/utils/subjectName'
 import { STUDIO_SYSTEM_PROMPT_CBC, STUDIO_SYSTEM_PROMPT_PREVIOUS } from '../lib/studioSystemPrompt'
 import { classExercisePromptLines, resolveClassExercise } from '../lib/classExercise'
+import { FOCUS_ACTIVITY_INSTRUCTION, focusActivityPromptLines } from '../lib/activityFocus'
+import { ensureRationalePosition, rationalePositionPromptLine } from '../lib/rationale'
 import { schoolResourcePromptLines, DEFAULT_SCHOOL_RESOURCES } from '../../../config/schoolResources'
 import { lessonStudioSeed, aiPrefsPromptLines } from '../../../utils/teacherDefaults'
 import { getSchoolProfile } from '../../../utils/schoolProfileService'
@@ -157,6 +159,7 @@ function draftInputFingerprint(s) {
     topic: s.topicData?.topic ?? '',
     subtopic: s.topicData?.subtopic ?? '',
     competence: s.topicData?.competence ?? '',
+    focusActivities: s.topicData?.focusActivities ?? [],
     selectedOutcomes: s.selectedOutcomes,
     learningEnvironments: s.learningEnvironments,
     lessonSeries: {
@@ -918,11 +921,14 @@ export default function LessonPlanStudio() {
         userPromptLines.push(`Specific Competence: ${row.specificCompetence}`)
       if (row.learningActivities?.length)
         userPromptLines.push(`Learning Activities (from syllabus): ${row.learningActivities.join(' | ')}`)
+      const focusLines = focusActivityPromptLines(row, topicData.focusActivities)
+      userPromptLines.push(...focusLines)
       if (row.expectedStandard)
         userPromptLines.push(`Expected Standard: ${row.expectedStandard}`)
       userPromptLines.push('</cbc_context>')
       userPromptLines.push('')
       userPromptLines.push('Ground the entire plan in this context. The specificCompetence drives every stage.')
+      if (focusLines.length) userPromptLines.push(FOCUS_ACTIVITY_INSTRUCTION)
     }
 
     const classExercise = resolveClassExercise(formatOptions)
@@ -960,6 +966,11 @@ export default function LessonPlanStudio() {
     // actually satisfy — and §3.2's length gate is what makes it a promise.
     const lessonFormat = resolveLessonFormat(formatOptions)
     userPromptLines.push('', ...lessonFormatPromptLines(lessonFormat))
+    // The rationale's fourth part is the lesson's position, which the studio
+    // knows; say it outright rather than leaving the model to infer it.
+    if (lessonFormat.sections?.rationale !== false) {
+      userPromptLines.push(rationalePositionPromptLine(lessonNumber, totalLessons))
+    }
 
     // Teacher Settings → My AI: English variant + include/exclude switches
     // (pure derivation, order-stable — see utils/teacherDefaults).
@@ -1125,7 +1136,16 @@ export default function LessonPlanStudio() {
       })
       if (run !== runRef.current) return
       if (gate.error) console.warn('[zedexams] lesson-plan length gate failed', gate.error)
-      const planJson = gate.repaired ? normalizePlanShape(gate.plan) : rawPlanJson
+      // A rationale that came back (or was condensed) without its position
+      // sentence gets it appended, so the fourth part is never missing.
+      const planJson = ensureRationalePosition(
+        gate.repaired ? normalizePlanShape(gate.plan) : rawPlanJson,
+        {
+          lessonNumber,
+          totalLessons,
+          localLanguage: Boolean(formatOptions.advanced?.localLanguage && lessonDetails.medium && lessonDetails.medium !== 'English'),
+        },
+      )
 
       // `meta` was built from the form before the call (and already drove the
       // live header animation); reuse it verbatim for the finished document.

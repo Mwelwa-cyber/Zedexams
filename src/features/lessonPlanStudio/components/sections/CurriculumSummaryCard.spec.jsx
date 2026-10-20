@@ -230,3 +230,44 @@ describe('CurriculumSummaryCard — Previous Curriculum mode', () => {
     expect(screen.queryByText('Expected Standard')).not.toBeInTheDocument()
   })
 })
+
+// ── Choosing focus learning activities (CBC) ──────────────────────────────────
+
+describe('CurriculumSummaryCard — focus learning activities', () => {
+  it('renders each activity as a toggle the teacher can tap', () => {
+    const onToggle = vi.fn()
+    render(
+      <CurriculumSummaryCard
+        subtopicRow={CBC_ROW}
+        curriculumMode="cbc"
+        focusActivities={[]}
+        onToggleActivity={onToggle}
+      />,
+    )
+    const chip = screen.getByRole('button', { name: 'Role Play' })
+    expect(chip).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(chip)
+    expect(onToggle).toHaveBeenCalledWith('Role Play')
+    expect(screen.getByText(/None selected/)).toBeInTheDocument()
+  })
+
+  it('marks the chosen activities and ignores choices from another sub-topic', () => {
+    render(
+      <CurriculumSummaryCard
+        subtopicRow={CBC_ROW}
+        curriculumMode="cbc"
+        focusActivities={['Experiment', 'Not on this row']}
+        onToggleActivity={() => {}}
+      />,
+    )
+    expect(screen.getByRole('button', { name: /Experiment/ })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Group Discussion' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByText(/1 of 3 selected/)).toBeInTheDocument()
+  })
+
+  it('stays read-only when no toggle handler is given', () => {
+    render(<CurriculumSummaryCard subtopicRow={CBC_ROW} curriculumMode="cbc" />)
+    expect(screen.queryByRole('button', { name: 'Role Play' })).not.toBeInTheDocument()
+    expect(screen.getByText('Role Play')).toBeInTheDocument()
+  })
+})

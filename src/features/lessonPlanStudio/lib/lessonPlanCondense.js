@@ -13,6 +13,7 @@
  */
 
 import { LENGTH_GATE_TOLERANCE, resolveLessonFormat } from '../../../utils/lessonPlanFormat.js'
+import { CONDENSE_RATIONALE_RULE } from './rationale.js'
 
 /**
  * Words in a cell. Dash prefixes, bullet glyphs and numbering are stripped
@@ -140,6 +141,7 @@ export function buildCondensePrompt(overCells) {
     '- Write in point form the way a teacher writes in a plan book: sentence fragments, imperative voice, no subject pronouns, no restating the stage name or the lesson context.',
     '- Keep each line on its own line. Where maxLines is given, merge related actions until the cell has at most that many lines.',
     '- Keep Zambian English spelling and any bracketed expected answers.',
+    ...(overCells.some((c) => c.path === 'rationale') ? [CONDENSE_RATIONALE_RULE] : []),
     '',
     'Return ONLY a JSON object mapping each id to its condensed text. No markdown fences, no commentary.',
     '',

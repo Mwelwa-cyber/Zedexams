@@ -1,5 +1,6 @@
 import { ActivityChip } from '../cards/ActivityChip.jsx'
 import { competencesOf } from '../../lib/competenceChoice.js'
+import { resolveFocusActivities } from '../../lib/activityFocus.js'
 import { Sparkles } from '../../../../shared/components/icons'
 
 const SECTION_LABEL_CLS = 'block text-[10px] font-bold uppercase tracking-widest text-[#4A5A6E] mb-1'
@@ -8,17 +9,32 @@ const SECTION_VALUE_CLS = 'text-[13px] text-[#3d3529] leading-snug'
 /**
  * CurriculumSummaryCard — card showing curriculum row data for the selected
  * subtopic. Renders nothing when subtopicRow is null. Read-only apart from the
- * CBC competence choice, which appears only when the sub-topic has more than one.
+ * CBC competence choice, which appears only when the sub-topic has more than one,
+ * and the CBC learning activities, which the teacher can tick to choose this
+ * lesson's focus.
  *
  * Props:
  *   subtopicRow: CBCSubtopicRow | OldSubtopicRow | null
  *   curriculumMode: 'cbc' | 'previous' | null
  *   selectedOutcomes: string[] — outcomes to highlight (Previous mode only)
  *   onSelectCompetence: (specificCompetence: string) => void — CBC only
+ *   focusActivities: string[] — the learning activities chosen as this lesson's focus (CBC only)
+ *   onToggleActivity: (activity: string) => void — makes the activities selectable (CBC only)
  */
-export function CurriculumSummaryCard({ subtopicRow, curriculumMode, selectedOutcomes = [], onSelectCompetence, embedded = false }) {
+export function CurriculumSummaryCard({
+  subtopicRow,
+  curriculumMode,
+  selectedOutcomes = [],
+  onSelectCompetence,
+  focusActivities = [],
+  onToggleActivity,
+  embedded = false,
+}) {
   if (!subtopicRow) return null
   const competences = competencesOf(subtopicRow)
+  const activities = subtopicRow.learningActivities ?? []
+  const canChooseActivities = typeof onToggleActivity === 'function' && activities.length > 0
+  const focus = resolveFocusActivities(subtopicRow, focusActivities)
 
   return (
     <div className={[embedded ? '' : 'mx-4 mb-4', 'rounded-2xl bg-[#FFF4E8] p-4 lps-soft-shadow lps-section-enter'].join(' ')}>
@@ -71,15 +87,37 @@ export function CurriculumSummaryCard({ subtopicRow, curriculumMode, selectedOut
             </div>
           )}
 
-          {/* Learning Activities (of the chosen competence) */}
-          <div>
-            <span className={SECTION_LABEL_CLS}>Learning Activities</span>
-            <div className="flex flex-wrap gap-1 mt-1">
-              {(subtopicRow.learningActivities ?? []).map((activity) => (
-                <ActivityChip key={activity} label={activity} />
-              ))}
+          {/* Learning Activities (of the chosen competence). The teacher may
+              tick the ones this lesson focuses on; none ticked uses them all. */}
+          {canChooseActivities ? (
+            <fieldset>
+              <legend className={SECTION_LABEL_CLS}>Learning Activities — tap the ones this lesson focuses on</legend>
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                {activities.map((activity) => (
+                  <ActivityChip
+                    key={activity}
+                    label={activity}
+                    selected={focus.includes(activity)}
+                    onToggle={() => onToggleActivity(activity)}
+                  />
+                ))}
+              </div>
+              <p className="mt-1.5 text-[11px] text-[#4A5A6E]" aria-live="polite">
+                {focus.length === 0
+                  ? 'None selected: the lesson will draw on all of these activities.'
+                  : `${focus.length} of ${activities.length} selected: the lesson will focus on ${focus.length === 1 ? 'this activity' : 'these activities'}.`}
+              </p>
+            </fieldset>
+          ) : (
+            <div>
+              <span className={SECTION_LABEL_CLS}>Learning Activities</span>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {activities.map((activity) => (
+                  <ActivityChip key={activity} label={activity} />
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Expected Standard */}
           <div>

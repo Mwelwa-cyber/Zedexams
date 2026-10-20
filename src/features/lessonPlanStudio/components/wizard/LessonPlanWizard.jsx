@@ -11,6 +11,7 @@ import { TopicCurriculumStep } from './steps/TopicCurriculumStep.jsx'
 import { LessonContextStep } from './steps/LessonContextStep.jsx'
 import { FormatOptionsStep } from './steps/FormatOptionsStep.jsx'
 import { ReviewGenerateStep } from './steps/ReviewGenerateStep.jsx'
+import { toggleFocusActivity } from '../../lib/activityFocus.js'
 
 /**
  * LessonPlanWizard — the guided five-step creation flow of the Lesson Plan
@@ -325,6 +326,10 @@ export function LessonPlanWizard({
                   selectedOutcomes={selectedOutcomes}
                   onToggleOutcome={toggleSelectedOutcome}
                   onSelectCompetence={(value) => setTopicField('competence', value)}
+                  onToggleActivity={(activity) => setTopicField(
+                    'focusActivities',
+                    toggleFocusActivity(topicData.subtopicRow, topicData.focusActivities, activity),
+                  )}
                 />
               )}
               {currentStep === 2 && (
