@@ -1324,3 +1324,90 @@ describe('LessonPlanStudio — edit mode', () => {
     expect(mockGetGeneration).not.toHaveBeenCalled()
   })
 })
+
+// ── Generate with a saved lesson already in the subtopic ──────────────────────
+// Reported by an OBC teacher: on reaching Generate, the studio opened their
+// previously saved lesson plan for editing instead of generating a new one.
+// In single-lesson mode the expected count is just what exists, so one saved
+// Lesson 1 made the button's action 'continue', which navigated to /edit.
+
+const { buildSubtopicKey } = await import('../../../shared/utils/lessonMemory.js')
+
+describe('LessonPlanStudio — Generate when the subtopic already has a saved lesson', () => {
+  const SELECTION = {
+    curriculumMode: 'previous',
+    lessonDetails: {
+      grade: 'Grade 5', subject: 'Mathematics', duration: '40', medium: 'English',
+      term: '', week: '', date: '', time: '', teacherName: '', school: '',
+    },
+    topicData: { topic: 'Fractions', subtopic: 'Adding fractions', subtopicRow: null },
+  }
+  const KEY = buildSubtopicKey({
+    curriculumType: 'Previous Curriculum', grade: 'Grade 5', subject: 'Mathematics',
+    topic: 'Fractions', subtopic: 'Adding fractions',
+  })
+  const saved = (n, extra = {}) => ({
+    id: `mem-${n}`, subtopicKey: KEY, lessonNumber: n, generationId: `gen-${n}`, ...extra,
+  })
+
+  let mockNavigate
+  beforeEach(async () => {
+    vi.clearAllMocks()
+    mockNavigate = vi.fn()
+    const routerMod = await import('react-router-dom')
+    vi.mocked(routerMod.useNavigate).mockReturnValue(mockNavigate)
+    innerCallable.mockResolvedValue({ data: { text: '{"topic":"T","stages":[]}' } })
+  })
+  afterEach(async () => {
+    const { useLessonMemory } = await import('../hooks/useLessonMemory')
+    vi.mocked(useLessonMemory).mockReturnValue({ plans: [], loading: false, error: null })
+  })
+
+  async function withPlans(plans) {
+    const { useLessonMemory } = await import('../hooks/useLessonMemory')
+    vi.mocked(useLessonMemory).mockReturnValue({ plans, loading: false, error: null })
+  }
+
+  it('asks instead of opening the saved plan, and "Create Lesson 2" generates', async () => {
+    await withPlans([saved(1)])
+    renderStudioWithGeneration(SELECTION)
+    fireEvent.click(screen.getByTestId('trigger-generate'))
+
+    expect(mockNavigate).not.toHaveBeenCalled()
+    expect(innerCallable).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog')).toHaveTextContent('Lesson 1 already exists')
+
+    fireEvent.click(screen.getByRole('button', { name: /create lesson 2/i }))
+    await waitFor(() => expect(innerCallable).toHaveBeenCalledTimes(1))
+    expect(mockNavigate).not.toHaveBeenCalled()
+  })
+
+  it('"Duplicate lesson" generates a new version of the saved lesson', async () => {
+    await withPlans([saved(1)])
+    renderStudioWithGeneration(SELECTION)
+    fireEvent.click(screen.getByTestId('trigger-generate'))
+    fireEvent.click(screen.getByRole('button', { name: /duplicate lesson/i }))
+    await waitFor(() => expect(innerCallable).toHaveBeenCalledTimes(1))
+    expect(mockNavigate).not.toHaveBeenCalled()
+  })
+
+  it('opens the saved plan only when the teacher picks "Continue existing lesson"', async () => {
+    await withPlans([saved(1)])
+    renderStudioWithGeneration(SELECTION)
+    fireEvent.click(screen.getByTestId('trigger-generate'))
+    fireEvent.click(screen.getByRole('button', { name: /continue existing lesson/i }))
+    expect(mockNavigate).toHaveBeenCalledWith('/teacher/lesson-plans/gen-1/edit')
+    expect(innerCallable).not.toHaveBeenCalled()
+  })
+
+  it('does not send the teacher to the library when every saved lesson is taught', async () => {
+    await withPlans([saved(1, { teachingStatus: 'taught' }), saved(2, { teachingStatus: 'taught' })])
+    renderStudioWithGeneration(SELECTION)
+    fireEvent.click(screen.getByTestId('trigger-generate'))
+
+    expect(mockNavigate).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog')).toHaveTextContent('Lesson 2 already exists')
+    fireEvent.click(screen.getByRole('button', { name: /create lesson 3/i }))
+    await waitFor(() => expect(innerCallable).toHaveBeenCalledTimes(1))
+  })
+})
