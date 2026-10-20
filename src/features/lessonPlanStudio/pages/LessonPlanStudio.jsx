@@ -1657,16 +1657,18 @@ export default function LessonPlanStudio() {
       handleGenerate(0)
       return
     }
-    if (genButton.action === 'review') {
-      handleViewCompleted()
+    // Every lesson in this subtopic is already saved ('continue' / 'review').
+    // The Generate step must never leave the studio on its own: it used to
+    // open the saved plan's editor (or the library), so a teacher who had one
+    // saved Lesson 1 for the subtopic — always the case in single-lesson mode,
+    // where the expected count is just what exists — could never generate
+    // again. Ask instead: create the next lesson, duplicate, or open the saved one.
+    if (genButton.action === 'continue' || genButton.action === 'review') {
+      const prog = subtopicProgress(subtopicLessons, expectedCount)
+      const last = subtopicLessons[subtopicLessons.length - 1]
+      const lessonNumber = genButton.nextLessonNumber || Number(last?.lessonNumber) || 1
+      setDupModal({ lessonNumber, nextLessonNumber: prog.nextToCreate })
       return
-    }
-    if (genButton.action === 'continue') {
-      const target = findLessonByNumber(subtopicLessons, genButton.nextLessonNumber)
-      if (target) {
-        handleOpenLesson(target)
-        return
-      }
     }
     const targetNum = genButton.nextLessonNumber || 1
     const existing = findLessonByNumber(subtopicLessons, targetNum)
@@ -1676,7 +1678,7 @@ export default function LessonPlanStudio() {
       return
     }
     handleGenerate(0, { lessonNumber: targetNum })
-  }, [subtopicKey, genButton, subtopicLessons, expectedCount, handleGenerate, handleViewCompleted, handleOpenLesson])
+  }, [subtopicKey, genButton, subtopicLessons, expectedCount, handleGenerate])
 
   // Duplicate-dialog resolutions (requirement #6).
   const handleDupContinue = useCallback(() => {
