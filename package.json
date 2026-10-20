@@ -985,7 +985,9 @@
     "test:parent-share": "node scripts/test-parent-share.mjs",
     "test:guardian-link-pay": "node functions/guardianUnlock/linkPayment.test.js",
     "test:payment-link-tag": "node functions/paymentHandlers.linkTag.test.js",
-    "test:lesson-competence": "node src/features/lessonPlanStudio/lib/competenceChoice.test.js"
+    "test:lesson-competence": "node src/features/lessonPlanStudio/lib/competenceChoice.test.js",
+    "test:lesson-activity-focus": "node src/features/lessonPlanStudio/lib/activityFocus.test.js",
+    "test:lesson-rationale": "node src/features/lessonPlanStudio/lib/rationale.test.js"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",

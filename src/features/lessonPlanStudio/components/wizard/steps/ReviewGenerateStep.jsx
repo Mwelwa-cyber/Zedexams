@@ -1,6 +1,7 @@
 import { Pencil, Eye } from 'lucide-react'
 import { cleanSubjectName } from '../../../../../shared/utils/subjectName.js'
 import { resolveClassExercise } from '../../../lib/classExercise.js'
+import { resolveFocusActivities } from '../../../lib/activityFocus.js'
 import { SCHOOL_RESOURCE_LEVELS } from '../../../../../config/schoolResources.js'
 import {
   OPTIONAL_SECTION_LABELS,
@@ -89,6 +90,7 @@ export function ReviewGenerateStep({ studioState, onEditStep, hasPlan = false, o
   // A list of everything included is noise; a list of what is missing is the
   // thing a teacher wants to check before submitting the plan.
   const classExercise = resolveClassExercise(formatOptions)
+  const focusActivities = resolveFocusActivities(topicData.subtopicRow, topicData.focusActivities)
   // One line in the summary; the full text stays in the form.
   const summarise = (text) => {
     const oneLine = text.replace(/\s+/g, ' ')
@@ -129,6 +131,12 @@ export function ReviewGenerateStep({ studioState, onEditStep, hasPlan = false, o
         <Row label="Subtopic" value={topicData.subtopic} />
         {curriculumMode === 'cbc' && (
           <Row label="Specific competence" value={topicData.subtopicRow?.specificCompetence} />
+        )}
+        {curriculumMode === 'cbc' && (
+          <Row
+            label="Focus activities"
+            value={focusActivities.length ? summarise(focusActivities.join('; ')) : 'All syllabus activities'}
+          />
         )}
         {curriculumMode === 'previous' && (
           <Row
