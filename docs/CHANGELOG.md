@@ -5,6 +5,24 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-10-20
+
+### Fixed
+
+- Lesson Plan Generate opening a saved plan; RichContent unmount race (#2771)
+- Patch grpc-js, postcss-selector-parser and sprintf-js alerts (#2759)
+- Stop paging CRITICAL on a single transient Cloud Logging 502 (#2755)
+
+### Changed
+
+- Lesson Plan Studio: choose focus learning activities; four-part rationale (#2770)
+
+### Internal
+
+- Patch @xmldom/xmldom, @fastify/busboy, fast-uri, brace-expansion, grpc-js (#2747)
+
+_Dependencies: 6 automated bumps (#2761, #2752, #2751, #2750, #2749, #2748)._
+
 ## 2026-10-11
 
 ### Added
