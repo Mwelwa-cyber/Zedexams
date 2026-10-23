@@ -17,14 +17,14 @@ const MAX_CHARS = 3000;
 // fails toward the safe defaults, never toward "allow anything"
 // (functions/ttsVoiceConfig.js, cached 60s off the request path).
 //
-// ELEVENLABS_API_KEY is bound here because an offered ElevenLabs voice makes
-// THIS endpoint the caller. Safe to bind only because the secret already
-// holds a value in Secret Manager — a defineSecret bound to a valueless
-// secret hard-fails every functions deploy (the RECRAFT_API_KEY trap). The
-// binding is unconditional; a flag read at deploy analysis time is always
-// undefined and silently binds nothing (#1983/#1991).
-const {defineSecret} = require('firebase-functions/params');
-const elevenLabsApiKey = defineSecret('ELEVENLABS_API_KEY');
+// ELEVENLABS_API_KEY is deliberately NOT bound here (2026-10-23). Learner
+// audio is Google-only; binding a secret makes it a dependency of every cold
+// start, and on 2026-10-22 this endpoint's instances were failing to start.
+// If an admin still offers an ElevenLabs voice, elevenLabsClient reports
+// "not configured", this endpoint answers 502, and the client falls back to
+// the browser voice. The admin preview and spelling-audio callables in
+// index.js keep their own bindings. Re-binding here needs the secret to hold
+// a value first, or every functions deploy hard-fails (the RECRAFT_API_KEY trap).
 
 async function verifyIdToken(req) {
   const token = (req.get('authorization') || '').replace(/^Bearer\s+/i, '');
@@ -46,7 +46,6 @@ exports.apiTextToSpeech = onRequest(
     region:         'us-central1',
     memory:         '512MiB',
     timeoutSeconds: 30,
-    secrets:        [elevenLabsApiKey],
   },
   async (req, res) => {
     // Browser CORS via the shared origin allow-list (functions/cors.js).

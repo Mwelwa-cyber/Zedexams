@@ -518,8 +518,7 @@
       "options": {
         "region": "'us-central1'",
         "memory": "'512MiB'",
-        "timeoutSeconds": "30",
-        "secrets": "[elevenLabsApiKey]"
+        "timeoutSeconds": "30"
       },
       "optionsFrom": "./tts",
       "optionsUnresolved": null,
