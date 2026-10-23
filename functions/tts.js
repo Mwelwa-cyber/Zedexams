@@ -33,10 +33,18 @@ async function verifyIdToken(req) {
   catch { return null; }
 }
 
+// 512MiB, not the 256MiB default every other function runs on. This is the
+// one function that, besides the ~120-150 MiB every instance pays to load
+// index.js, also loads the Google TTS SDK (~42 MiB measured with 7.2.0) and
+// holds whole MP3 bodies in memory — up to 80 concurrent requests per
+// instance, each with a provider reply and a cache read of up to ~1 MB.
+// Spelling warms words ahead of time, so its traffic arrives in bursts. On
+// 2026-10-22 functionErrorWatch reported 72 "instance could not start
+// successfully" errors from this function alone; 256MiB left too little room.
 exports.apiTextToSpeech = onRequest(
   {
     region:         'us-central1',
-    memory:         '256MiB',
+    memory:         '512MiB',
     timeoutSeconds: 30,
     secrets:        [elevenLabsApiKey],
   },
