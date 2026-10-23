@@ -17,14 +17,14 @@ const MAX_CHARS = 3000;
 // fails toward the safe defaults, never toward "allow anything"
 // (functions/ttsVoiceConfig.js, cached 60s off the request path).
 //
-// ELEVENLABS_API_KEY is bound here because an offered ElevenLabs voice makes
-// THIS endpoint the caller. Safe to bind only because the secret already
-// holds a value in Secret Manager — a defineSecret bound to a valueless
-// secret hard-fails every functions deploy (the RECRAFT_API_KEY trap). The
-// binding is unconditional; a flag read at deploy analysis time is always
-// undefined and silently binds nothing (#1983/#1991).
-const {defineSecret} = require('firebase-functions/params');
-const elevenLabsApiKey = defineSecret('ELEVENLABS_API_KEY');
+// ELEVENLABS_API_KEY is deliberately NOT bound here (2026-10-23). Learner
+// audio is Google-only; binding a secret makes it a dependency of every cold
+// start, and on 2026-10-22 this endpoint's instances were failing to start.
+// If an admin still offers an ElevenLabs voice, elevenLabsClient reports
+// "not configured", this endpoint answers 502, and the client falls back to
+// the browser voice. The admin preview and spelling-audio callables in
+// index.js keep their own bindings. Re-binding here needs the secret to hold
+// a value first, or every functions deploy hard-fails (the RECRAFT_API_KEY trap).
 
 async function verifyIdToken(req) {
   const token = (req.get('authorization') || '').replace(/^Bearer\s+/i, '');
@@ -33,12 +33,19 @@ async function verifyIdToken(req) {
   catch { return null; }
 }
 
+// 512MiB, not the 256MiB default every other function runs on. This is the
+// one function that, besides the ~120-150 MiB every instance pays to load
+// index.js, also loads the Google TTS SDK (~42 MiB measured with 7.2.0) and
+// holds whole MP3 bodies in memory — up to 80 concurrent requests per
+// instance, each with a provider reply and a cache read of up to ~1 MB.
+// Spelling warms words ahead of time, so its traffic arrives in bursts. On
+// 2026-10-22 functionErrorWatch reported 72 "instance could not start
+// successfully" errors from this function alone; 256MiB left too little room.
 exports.apiTextToSpeech = onRequest(
   {
     region:         'us-central1',
-    memory:         '256MiB',
+    memory:         '512MiB',
     timeoutSeconds: 30,
-    secrets:        [elevenLabsApiKey],
   },
   async (req, res) => {
     // Browser CORS via the shared origin allow-list (functions/cors.js).
