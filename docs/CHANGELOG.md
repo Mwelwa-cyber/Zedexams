@@ -5,6 +5,13 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-10-28
+
+### Changed
+
+- /api/tts: substitute a Google voice for an offered ElevenLabs one (#2785)
+- ApiTextToSpeech: 512MiB headroom, Google-only (drop ElevenLabs secret) (#2773)
+
 ## 2026-10-20
 
 ### Fixed
