@@ -20,11 +20,15 @@ const MAX_CHARS = 3000;
 // ELEVENLABS_API_KEY is deliberately NOT bound here (2026-10-23). Learner
 // audio is Google-only; binding a secret makes it a dependency of every cold
 // start, and on 2026-10-22 this endpoint's instances were failing to start.
-// If an admin still offers an ElevenLabs voice, elevenLabsClient reports
-// "not configured", this endpoint answers 502, and the client falls back to
-// the browser voice. The admin preview and spelling-audio callables in
+// If an admin still offers an ElevenLabs voice, this endpoint substitutes the
+// first offered Google voice (resolveServableVoice) — before that, it reached
+// elevenLabsClient, answered 502, and the learner got the browser voice; with
+// an ElevenLabs voice first in the list, that was EVERY learner request,
+// since the clients name no voice. The admin preview and spelling-audio callables in
 // index.js keep their own bindings. Re-binding here needs the secret to hold
 // a value first, or every functions deploy hard-fails (the RECRAFT_API_KEY trap).
+// Re-binding also means adding 'elevenlabs' here, or its voices stay substituted.
+const TTS_SERVABLE_PROVIDERS = new Set(['google']);
 
 async function verifyIdToken(req) {
   const token = (req.get('authorization') || '').replace(/^Bearer\s+/i, '');
@@ -96,14 +100,20 @@ exports.apiTextToSpeech = onRequest(
       return res.status(400).json({ error: `Text too long (max ${MAX_CHARS} chars)` });
     // Resolves id → {id, provider} against the offered list, refusing what
     // is not on it. The entry's provider drives synthesis routing below.
-    // A request naming NO voice gets the first offered one — the default is
-    // a property of the LIST, not a hard-coded id, so an admin narrowing the
-    // list can never strand voice-less requests on a voice they removed.
+    // A request naming NO voice gets the first offered one THIS endpoint can
+    // serve — the default is a property of the LIST, not a hard-coded id, so
+    // an admin narrowing the list can never strand voice-less requests on a
+    // voice they removed. Only Google is servable here (no ElevenLabs key is
+    // bound — see the note at the top), so an offered ElevenLabs voice is
+    // substituted with a Google one rather than answering 502.
     const {getEffectiveVoices} = require('./ttsVoiceConfig');
+    const {resolveServableVoice} = require('./ttsVoiceConfigCore');
+    const {GOOGLE_VOICES} = require('./ttsAdminCore');
     const offeredVoices = await getEffectiveVoices();
-    const voiceEntry = voice
-      ? offeredVoices.find((v) => v.id === voice) || null
-      : offeredVoices[0] || null;
+    const voiceEntry = resolveServableVoice(offeredVoices, voice, {
+      servableProviders: TTS_SERVABLE_PROVIDERS,
+      defaults: GOOGLE_VOICES.map((v) => ({...v, provider: 'google'})),
+    });
     if (!voiceEntry)
       return res.status(400).json({ error: `Voice '${voice}' not allowed` });
 

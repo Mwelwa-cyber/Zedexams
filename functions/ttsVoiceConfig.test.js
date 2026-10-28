@@ -30,6 +30,7 @@ const {
   normalizeOfferedList,
   effectiveVoiceList,
   findOfferedVoice,
+  resolveServableVoice,
 } = require("./ttsVoiceConfigCore");
 const {GOOGLE_VOICES} = require("./ttsAdminCore");
 
@@ -104,6 +105,32 @@ ok("an offered id resolves to its entry",
 ok("an unknown id is refused", findOfferedVoice(LIST, "nope") === null);
 ok("empty and non-string ids are refused",
   findOfferedVoice(LIST, "") === null && findOfferedVoice(LIST, null) === null);
+
+// ── resolveServableVoice: /api/tts holds a Google key only ────────────────
+{
+  const GOOGLE_ONLY = {servableProviders: new Set(["google"]), defaults: LIST};
+  const mixed = [
+    {id: "elv1", provider: "elevenlabs"},
+    {id: "en-GB-Studio-B", provider: "google"},
+  ];
+  ok("no voice named → the first SERVABLE offered voice, not list[0]",
+    resolveServableVoice(mixed, "", GOOGLE_ONLY)?.id === "en-GB-Studio-B");
+  ok("an offered but unservable voice is substituted, not refused",
+    resolveServableVoice(mixed, "elv1", GOOGLE_ONLY)?.id === "en-GB-Studio-B");
+  ok("an offered servable voice is honoured",
+    resolveServableVoice(mixed, "en-GB-Studio-B", GOOGLE_ONLY)?.id === "en-GB-Studio-B");
+  ok("a voice that is NOT offered is still refused (the allow-list holds)",
+    resolveServableVoice(mixed, "en-GB-Neural2-A", GOOGLE_ONLY) === null);
+  const elOnly = [{id: "elv1", provider: "elevenlabs"}];
+  ok("nothing servable offered → the first built-in default",
+    resolveServableVoice(elOnly, "", GOOGLE_ONLY)?.id === LIST[0].id &&
+    resolveServableVoice(elOnly, "elv1", GOOGLE_ONLY)?.id === LIST[0].id);
+  ok("with ElevenLabs servable, an ElevenLabs voice is served as itself",
+    resolveServableVoice(mixed, "elv1",
+      {servableProviders: new Set(["google", "elevenlabs"]), defaults: LIST})?.id === "elv1");
+  ok("nothing servable and no defaults → null, never an invented voice",
+    resolveServableVoice(elOnly, "", {servableProviders: new Set(["google"])}) === null);
+}
 
 // ── the cached reader: fail-open to defaults, one read per TTL ────────────
 function stubFirestore({data, throwOn = false} = {}) {
