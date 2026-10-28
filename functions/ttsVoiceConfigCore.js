@@ -86,10 +86,41 @@ function findOfferedVoice(list, id) {
   return (list || []).find((v) => v.id === id) || null;
 }
 
+/**
+ * The voice an endpoint will actually synthesise, given the providers it holds
+ * credentials for. /api/tts is Google-only since 2026-10-23 (no ElevenLabs key
+ * is bound to it), but the admin may still OFFER ElevenLabs voices — the admin
+ * preview and spelling-audio callables can voice them.
+ *
+ *   - no voice named → the first offered voice this endpoint can serve. Taking
+ *     `list[0]` blindly meant an ElevenLabs voice at the head of the list made
+ *     every voice-less request (all learner read-aloud) answer 502.
+ *   - a named voice that is offered but not servable → the same substitute,
+ *     because the only alternative is the device voice, which is further from
+ *     what the learner was promised than another cloud voice.
+ *   - a named voice that is NOT offered → null (refused, unchanged). The
+ *     allow-list is a financial control and stays one.
+ *
+ * When nothing offered is servable, the first built-in default stands in — the
+ * same safe set every config failure already resolves to.
+ */
+function resolveServableVoice(list, requestedId, {servableProviders, defaults = []} = {}) {
+  const offered = list || [];
+  const canServe = (v) => servableProviders.has(v.provider);
+  const substitute = () =>
+    offered.find(canServe) || (defaults || []).find(canServe) || null;
+
+  if (typeof requestedId !== "string" || !requestedId) return substitute();
+  const entry = findOfferedVoice(offered, requestedId);
+  if (!entry) return null;
+  return canServe(entry) ? entry : substitute();
+}
+
 module.exports = {
   PROVIDERS,
   normalizeOfferedVoice,
   normalizeOfferedList,
   effectiveVoiceList,
   findOfferedVoice,
+  resolveServableVoice,
 };
