@@ -5,6 +5,16 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-11-01
+
+### Changed
+
+- Lesson plans: general competences must show in the goal or rationale (#2790)
+- /api/tts: substitute a Google voice for an offered ElevenLabs one (#2785)
+- ApiTextToSpeech: 512MiB headroom, Google-only (drop ElevenLabs secret) (#2773)
+
+_Dependencies: 1 automated bump (#2777)._
+
 ## 2026-10-20
 
 ### Fixed
