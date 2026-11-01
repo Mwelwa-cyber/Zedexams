@@ -355,7 +355,19 @@ async function runLessonPlan({uid, rawInputs, apiKey, onProgress}) {
 
   if (onProgress) onProgress({phase: "claude_done"});
 
-  // 5. Validate + normalise against our schema.
+  // 5. Name, in the rationale, any listed general competence the lesson goal
+  //    and rationale never show (CBC only — a Previous-Curriculum plan lists
+  //    none — and English only, since an English sentence inside a local-
+  //    language rationale is worse than none). The same shared rule the Lesson
+  //    Plan Studio applies; ESM, so it is reached with await import here.
+  if (inputs.curriculumMode !== "previous" && inputs.language === "english" &&
+      parsed && typeof parsed === "object") {
+    const {ensureCompetenceLink} =
+      await import("../shared/lessonPlan/competenceLinkCore.js");
+    parsed = ensureCompetenceLink(parsed);
+  }
+
+  // 6. Validate + normalise against our schema.
   const validation = validateLessonPlan(parsed);
   const lessonPlan = validation.value;
   if (!validation.ok) {
@@ -381,7 +393,7 @@ async function runLessonPlan({uid, rawInputs, apiKey, onProgress}) {
     };
   }
 
-  // 6. Happy path — finalise the generation doc.
+  // 7. Happy path — finalise the generation doc.
   const tokensIn = Number(usageInfo.inputTokens || 0);
   const tokensOut = Number(usageInfo.outputTokens || 0);
   // Claude Sonnet 4.6 approx pricing: $3/M input, $15/M output (same as 4.5).

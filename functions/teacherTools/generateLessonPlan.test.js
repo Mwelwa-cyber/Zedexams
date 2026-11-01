@@ -5,7 +5,7 @@
 const assert = require("node:assert");
 const Module = require("node:module");
 
-const state = {refunds: [], claudeFails: true};
+const state = {refunds: [], claudeFails: true, parsed: {}};
 const originalLoad = Module._load.bind(Module);
 Module._load = function(id, parent, isMain) {
   if (id === "firebase-admin/firestore") {
@@ -31,7 +31,7 @@ Module._load = function(id, parent, isMain) {
   if (id === "./anthropicClient") {
     return {callClaude: async () => {
       if (state.claudeFails) throw new Error("anthropic down");
-      return {parsed: {}, text: "", usage: {}};
+      return {parsed: state.parsed, text: "", usage: {}};
     }};
   }
   if (id === "./cbcKnowledge") {
@@ -77,6 +77,28 @@ const {sanitizeInputs, validateInputs, runLessonPlan} = require("./generateLesso
   state.claudeFails = false;
   await runLessonPlan({uid: "u1", rawInputs: {grade: "G7", subject: "mathematics", topic: "Fractions"}, apiKey: "k"});
   assert.strictEqual(state.refunds.length, 0);
+
+  // A listed general competence the goal and rationale never show is named in
+  // the rationale before the position sentence (the shared competence rule).
+  const plan = () => ({
+    generalCompetences: ["Collaboration", "Analytical Thinking"],
+    lessonGoal: "Learners should be able to work in groups to add fractions.",
+    rationale: "This lesson is on adding fractions. This is lesson 1 in a series of 2.",
+  });
+  state.parsed = plan();
+  const cbc = await runLessonPlan({uid: "u1", rawInputs: {grade: "G7", subject: "mathematics", topic: "Fractions"}, apiKey: "k"});
+  assert.strictEqual(
+      cbc.lessonPlan.rationale,
+      "This lesson is on adding fractions. Through these activities, learners will also develop analytical thinking. This is lesson 1 in a series of 2.",
+  );
+  assert.strictEqual(cbc.lessonPlan.lessonGoal, plan().lessonGoal, "the goal is never rewritten");
+
+  // Previous Curriculum and local-language plans are left exactly as written.
+  for (const extra of [{curriculumMode: "previous"}, {language: "bemba"}]) {
+    state.parsed = plan();
+    const out = await runLessonPlan({uid: "u1", rawInputs: {grade: "G7", subject: "mathematics", topic: "Fractions", ...extra}, apiKey: "k"});
+    assert.strictEqual(out.lessonPlan.rationale, plan().rationale, JSON.stringify(extra));
+  }
 
   console.log("generateLessonPlan tests passed");
 })().catch((e) => {
