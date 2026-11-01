@@ -103,3 +103,19 @@ describe('studioSystemPrompt — class exercise (OBC)', () => {
   })
 })
 
+
+// The general competences listed on a CBC plan must show in its lesson goal or
+// rationale, as in the official CDC samples. The goal stays ONE sentence: the
+// numbered goal-per-competence format some teachers use is not the CDC one.
+describe('studioSystemPrompt — general competences link to the goal and rationale', () => {
+  it('CBC prompt quotes the shared competence directive', async () => {
+    const { COMPETENCE_LINK_DIRECTIVE } = await import('../../../../utils/lessonPlanCompetences.js')
+    expect(STUDIO_SYSTEM_PROMPT_CBC).toContain(COMPETENCE_LINK_DIRECTIVE)
+    expect(STUDIO_SYSTEM_PROMPT_CBC).toMatch(/LESSON GOAL — one SMART sentence/)
+    expect(STUDIO_SYSTEM_PROMPT_CBC).toMatch(/naming the competences they develop/)
+  })
+
+  it('Previous-curriculum prompt has no general competences, so no link rule', () => {
+    expect(STUDIO_SYSTEM_PROMPT_PREVIOUS).not.toMatch(/LINK THE COMPETENCES/)
+  })
+})

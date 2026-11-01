@@ -16,6 +16,13 @@
  *   EXERCISE/ASSESSMENT → HOMEWORK → CONCLUSION → LESSON EVALUATION
  *   (left blank for the teacher).
  *
+ * v4 (2026-11) adds LINK THE COMPETENCES: the general competences listed must
+ * show in the lesson goal or the rationale, as in the CDC samples. The text is
+ * the shared functions/shared/lessonPlan/competenceLinkCore.js directive,
+ * quoted literally here (this CommonJS module builds the prompt at load time
+ * and cannot import ESM synchronously); lessonPlanPrompt.test.js fails if the
+ * two copies drift.
+ *
  * v2 (5E Engagement/Exploration/Explanation/Synthesis/Evaluation) was
  * retired because no official module uses those stage names. Older
  * aiGenerations documents record the prompt version used so historical
@@ -26,7 +33,7 @@ const {learningEnvironmentLabel} = require("./learningEnvironments");
 const {schoolResourcePromptLines} = require("./schoolResources");
 const {subjectNameForGrade} = require("./subjectNaming");
 
-const PROMPT_VERSION = "lesson_plan.v3";
+const PROMPT_VERSION = "lesson_plan.v4";
 
 const SYSTEM_PROMPT = `You are an expert Zambian teacher and CDC (Curriculum Development Centre) curriculum specialist. You write Competence-Based Curriculum (CBC) lesson plans that match the SAMPLE LESSON PLAN appendix of the official CDC teaching modules exactly as a Zambian head teacher or School Inspector would expect to see them.
 
@@ -37,6 +44,7 @@ Your lesson plans MUST follow the official module structure:
 - SPECIFIC COMPETENCE — the syllabus specific competence written out in full, e.g. "Manage natural resources and waste in the environment". Do NOT prefix it with a syllabus code (no "4.3.1.1").
 - LESSON GOAL — one SMART sentence using action verbs (identify, describe, demonstrate, practise) — never "know" or "understand".
 - RATIONALE — one short paragraph with FOUR parts, in this order: (1) the lesson content, what the lesson is about; (2) the value or importance of the lesson to learners; (3) the teaching methods to be used (for example question and answer, group work, demonstration, discovery); (4) the position of the lesson, ending with the sentence "This is lesson K in a series of N." All four parts are required, even when the rationale is short.
+- LINK THE COMPETENCES — every general competence you list must show in the plan, as it does in the official CDC samples. The LESSON GOAL stays ONE SMART sentence (never a numbered list, one item per competence), but word it so the competences are visible in what learners do: for example, "Learners should be able to work in groups to identify natural resources in their community and suggest ways of using them responsibly." shows Collaboration, Critical Thinking and Citizenship. In part (3) of the RATIONALE, name the competences the teaching methods develop, for example "Through group discussion and demonstration, learners will develop collaboration and critical thinking." Every listed general competence must be named or clearly shown in the lesson goal or the rationale.
 - PRIOR KNOWLEDGE, REFERENCES (syllabus page + teaching module page), LEARNING ENVIRONMENT (Natural / Artificial / Technological — one line each), TEACHING AND LEARNING MATERIALS with local alternatives.
 - EXPECTED STANDARD — passive voice, lifted from the syllabus standard, e.g. "Natural resources and waste in the environment managed correctly."
 - LESSON PROGRESSION with EXACTLY these stages in order: INTRODUCTION → LESSON DEVELOPMENT → EXERCISE / ASSESSMENT → HOMEWORK → CONCLUSION. LESSON DEVELOPMENT may be split into 2-3 consecutive entries named "LESSON DEVELOPMENT — Activity 1: <short title>" etc. when the lesson naturally has distinct timed activities (as official Mathematics and Science modules do). Do NOT invent other stage names — never use Engagement/Exploration/Explanation/Synthesis as stage names.
@@ -199,8 +207,8 @@ function buildUserPrompt(inputs) {
     isPrevious
       ? '  "specificOutcome": string,           // the stated specific outcome(s) for this lesson'
       : '  "specificCompetence": string,         // written out, with NO syllabus code, e.g. "Practise safe and hygienic ways of handling food"',
-    '  "lessonGoal": string,                 // ONE SMART sentence',
-    '  "rationale": string,                  // content + value or importance + teaching methods + position, ending "This is lesson K in a series of N."',
+    '  "lessonGoal": string,                 // ONE SMART sentence that shows the general competences',
+    '  "rationale": string,                  // content + value or importance + teaching methods (naming the competences they develop) + position, ending "This is lesson K in a series of N."',
     '  "priorKnowledge": string,             // what learners already know related to this lesson',
     '  "references": [string, ...],          // 2-3 entries: subject syllabus with page, grade Teaching Module with page, optionally a textbook',
     '  "learningEnvironment": { "natural": string, "artificial": string, "technological": string },  // one line each; "" if genuinely not used',

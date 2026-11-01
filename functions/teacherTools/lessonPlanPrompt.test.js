@@ -44,7 +44,7 @@ Module._load = function(id, parent, isMain) {
   return originalLoad(id, parent, isMain);
 };
 
-const {buildUserPrompt} = require("./lessonPlanPrompt");
+const {buildUserPrompt, SYSTEM_PROMPT, PROMPT_VERSION} = require("./lessonPlanPrompt");
 const {sanitizeInputs} = require("./generateLessonPlan");
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -306,6 +306,27 @@ console.log("\nsanitizeInputs — new curriculum fields");
   ok("sanitize: lessonFocus truncated to 200", result.lessonFocus.length === 200);
 }
 
-// ── Summary ───────────────────────────────────────────────────────────────────
+// ── General competences ↔ lesson goal / rationale ─────────────────────────────
+// The server prompt quotes the shared directive literally (it is built at
+// module load and cannot import ESM synchronously). If the two copies drift,
+// the studio and the server ask for different plans.
 
-console.log(`\n${passed} tests passed.\n`);
+(async () => {
+  console.log("\nSYSTEM_PROMPT — competence link");
+  const {COMPETENCE_LINK_DIRECTIVE} =
+    await import("../shared/lessonPlan/competenceLinkCore.js");
+  ok("prompt version bumped to lesson_plan.v4", PROMPT_VERSION === "lesson_plan.v4");
+  ok("SYSTEM_PROMPT quotes the shared competence directive verbatim",
+      SYSTEM_PROMPT.includes(COMPETENCE_LINK_DIRECTIVE));
+  ok("SYSTEM_PROMPT keeps the lesson goal to ONE SMART sentence",
+      /LESSON GOAL — one SMART sentence/.test(SYSTEM_PROMPT));
+  ok("user prompt asks for a goal that shows the competences",
+      /shows the general competences/.test(buildUserPrompt(baseInputs())));
+  ok("user prompt asks the rationale to name the competences the methods develop",
+      /naming the competences they develop/.test(buildUserPrompt(baseInputs())));
+
+  console.log(`\n${passed} tests passed.\n`);
+})().catch((err) => {
+  console.error(err);
+  process.exitCode = 1;
+});

@@ -28,6 +28,7 @@ import { STUDIO_SYSTEM_PROMPT_CBC, STUDIO_SYSTEM_PROMPT_PREVIOUS } from '../lib/
 import { classExercisePromptLines, resolveClassExercise } from '../lib/classExercise'
 import { FOCUS_ACTIVITY_INSTRUCTION, focusActivityPromptLines } from '../lib/activityFocus'
 import { ensureRationalePosition, rationalePositionPromptLine } from '../lib/rationale'
+import { ensureCompetenceLink } from '../../../utils/lessonPlanCompetences'
 import { schoolResourcePromptLines, DEFAULT_SCHOOL_RESOURCES } from '../../../config/schoolResources'
 import { lessonStudioSeed, aiPrefsPromptLines } from '../../../utils/teacherDefaults'
 import { getSchoolProfile } from '../../../utils/schoolProfileService'
@@ -1137,14 +1138,17 @@ export default function LessonPlanStudio() {
       if (run !== runRef.current) return
       if (gate.error) console.warn('[zedexams] lesson-plan length gate failed', gate.error)
       // A rationale that came back (or was condensed) without its position
-      // sentence gets it appended, so the fourth part is never missing.
+      // sentence gets it appended, so the fourth part is never missing. Before
+      // that, any listed general competence the goal and rationale never show
+      // is named in the rationale (CBC; a Previous-Curriculum plan lists none),
+      // so the competences always correspond to the rest of the plan.
+      const localLanguage = Boolean(formatOptions.advanced?.localLanguage && lessonDetails.medium && lessonDetails.medium !== 'English')
       const planJson = ensureRationalePosition(
-        gate.repaired ? normalizePlanShape(gate.plan) : rawPlanJson,
-        {
-          lessonNumber,
-          totalLessons,
-          localLanguage: Boolean(formatOptions.advanced?.localLanguage && lessonDetails.medium && lessonDetails.medium !== 'English'),
-        },
+        ensureCompetenceLink(
+          gate.repaired ? normalizePlanShape(gate.plan) : rawPlanJson,
+          { localLanguage },
+        ),
+        { lessonNumber, totalLessons, localLanguage },
       )
 
       // `meta` was built from the form before the call (and already drove the
