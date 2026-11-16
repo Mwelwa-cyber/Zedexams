@@ -1032,7 +1032,7 @@
     "firebase": "^12.19.0",
     "html2canvas": "^1.4.1",
     "i18next": "^26.5.2",
-    "i18next-browser-languagedetector": "^8.2.1",
+    "i18next-browser-languagedetector": "^8.3.0",
     "jspdf": "^4.2.1",
     "jszip": "^3.10.2",
     "katex": "^0.19.0",
