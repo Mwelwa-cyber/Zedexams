@@ -53,7 +53,7 @@ const {
 } = require("./storageBackupHeartbeatCore");
 const {
   runStorageBackupCheck, STORAGE_BACKUP_STATUS,
-  writeStorageBackupHeartbeat, probeHeartbeat,
+  writeStorageBackupHeartbeat, probeHeartbeat, PROBE_DEADLINE_MS,
 } = require("./storageBackup");
 Module._load = origLoad;
 
@@ -304,6 +304,47 @@ ok("custom hours honoured", resolveMaxAgeMs("12") === 12 * HOUR_MS);
       alerts.length === 1 && /ERRORED/.test(alerts[0].title));
     ok("the error message is recorded",
       db.writes.some((x) => /PERMISSION_DENIED/.test(x.data.error || "")));
+  }
+
+  // ── a STALLED probe → recorded error, never a silent platform timeout ────
+  // A hung GCS read used to run the function into its 120s timeoutSeconds, so
+  // the container died before record() and no status doc was written — the
+  // first signal was opsHeartbeatCheck calling the cron "stopped" ~30h later.
+  {
+    const db = fakeDb();
+    const alerts = [];
+    const heartbeat = () => new Promise(() => {}); // never settles
+    const res = await runStorageBackupCheck({
+      db, env: configured, now: NOW, heartbeat, alert: async (a) => alerts.push(a),
+      probeDeadlineMs: 20,
+    });
+    ok("a stalled probe resolves as ERROR rather than hanging",
+      res.status === STORAGE_BACKUP_STATUS.ERROR && /timed out/.test(res.error));
+    ok("a stalled probe still writes the status doc (the heartbeat)",
+      db.writes.length === 1 && db.writes[0].data.status === STORAGE_BACKUP_STATUS.ERROR);
+    ok("a stalled probe alerts the same morning", alerts.length === 1);
+  }
+  ok("the probe deadline sits well inside the 120s function timeout",
+    PROBE_DEADLINE_MS > 0 && PROBE_DEADLINE_MS <= 60 * 1000);
+
+  // ── a failed status write is logged at ERROR, not swallowed ──────────────
+  {
+    const errors = [];
+    const origError = console.error;
+    console.error = (...a) => errors.push(a.join(" "));
+    const db = {collection: () => ({doc: () => ({set: async () => { throw new Error("UNAVAILABLE"); }})})};
+    let res;
+    try {
+      res = await runStorageBackupCheck({
+        db, env: configured, now: NOW, alert: async () => {},
+        heartbeat: async () => NOW.getTime(),
+      });
+    } finally {
+      console.error = origError;
+    }
+    ok("a failed status write never throws out of the check", Boolean(res && res.status));
+    ok("a failed status write is logged at ERROR",
+      errors.some((e) => /status write FAILED/.test(e) && /UNAVAILABLE/.test(e)));
   }
 
   // ── heartbeat I/O: the write must OVERWRITE a fixed path ────────────────

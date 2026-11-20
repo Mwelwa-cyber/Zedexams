@@ -84,6 +84,25 @@ const STORAGE_BACKUP_STATUS = Object.freeze({
   ERROR: "error", // the lookup itself failed (alerts)
 });
 
+// The probe's own deadline, well inside the function's 120s timeoutSeconds.
+// Without it a stalled GCS read (the client retries internally) runs the
+// function into its platform timeout: the container is killed before
+// record() runs, so NO status doc is written and the first anyone hears is the
+// dead-man's-switch ~30h later blaming a "stopped" cron. With it, a stall is a
+// recorded, alerted `error` the same morning.
+const PROBE_DEADLINE_MS = 45 * 1000;
+
+function withDeadline(promise, ms, label) {
+  let timer;
+  const deadline = new Promise((_resolve, reject) => {
+    timer = setTimeout(
+        () => reject(new Error(`${label} timed out after ${Math.round(ms / 1000)}s`)),
+        ms,
+    );
+  });
+  return Promise.race([promise, deadline]).finally(() => clearTimeout(timer));
+}
+
 function logStorageBackupEvent(fields) {
   try {
     console.log("[storageBackup]", JSON.stringify(fields));
@@ -154,6 +173,7 @@ async function runStorageBackupCheck({
   alert = sendOpsAlert,
   now = new Date(),
   correlationId = crypto.randomUUID(),
+  probeDeadlineMs = PROBE_DEADLINE_MS,
 } = {}) {
   const dateKey = dateKeyUtc(now);
   const nowMs = now.getTime();
@@ -173,7 +193,13 @@ async function runStorageBackupCheck({
   const statusRef = db.collection("opsStorageBackups").doc(dateKey);
   const record = async (fields) => {
     logStorageBackupEvent({...base, ...fields});
-    await statusRef.set({...base, ...fields}, {merge: true}).catch(() => {});
+    // Not swallowed silently: this doc IS the heartbeat opsHeartbeatCheck
+    // reads, so a failed write later surfaces as "storageBackupCheck stopped".
+    // Log it at ERROR so that alert has a log line to point back to.
+    await statusRef.set({...base, ...fields}, {merge: true}).catch((err) => {
+      console.error("[storageBackup] status write FAILED — the dead-man's-switch will " +
+        "report this run as missing", String((err && err.message) || err).slice(0, 500));
+    });
   };
   const raise = async (title, lines, severity = "error") =>
     Promise.resolve(alert({title, severity, lines})).catch(() => {});
@@ -213,10 +239,10 @@ async function runStorageBackupCheck({
   let primaryUpdatedMs;
   let backupUpdatedMs;
   try {
-    [primaryUpdatedMs, backupUpdatedMs] = await Promise.all([
+    [primaryUpdatedMs, backupUpdatedMs] = await withDeadline(Promise.all([
       heartbeat(undefined), // undefined → the default (primary) bucket
       heartbeat(bucketName),
-    ]);
+    ]), probeDeadlineMs, "heartbeat probe");
   } catch (err) {
     const message = String((err && err.message) || err).slice(0, 500);
     const result = {status: STORAGE_BACKUP_STATUS.ERROR, error: message};
@@ -368,4 +394,5 @@ module.exports = {
   probeHeartbeat,
   dateKeyUtc,
   STORAGE_BACKUP_STATUS,
+  PROBE_DEADLINE_MS,
 };
