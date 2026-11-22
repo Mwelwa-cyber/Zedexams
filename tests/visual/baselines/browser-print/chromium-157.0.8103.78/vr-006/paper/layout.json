@@ -1,0 +1,31 @@
+{
+  "pageCount": 5,
+  "anchors": {
+    "question_1": 1,
+    "question_2": 1,
+    "question_3": 1,
+    "question_4": 1,
+    "question_5": 2,
+    "question_6": 2,
+    "question_7": 2,
+    "question_8": 2,
+    "question_9": 3,
+    "question_10": 3,
+    "question_11": 3,
+    "question_12": 3,
+    "question_13": 3,
+    "question_14": 4,
+    "question_15": 4,
+    "question_16": 4,
+    "question_17": 4,
+    "question_18": 4,
+    "header": 1
+  },
+  "inkByPage": {
+    "1": 0.031203668681201873,
+    "2": 0.029253094276382452,
+    "3": 0.029827821200567272,
+    "4": 0.030368957199639612,
+    "5": 0.0028147354645624944
+  }
+}

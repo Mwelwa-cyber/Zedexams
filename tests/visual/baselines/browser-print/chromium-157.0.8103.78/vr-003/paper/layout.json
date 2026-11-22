@@ -1,0 +1,14 @@
+{
+  "pageCount": 2,
+  "anchors": {
+    "question_1": 2,
+    "question_2": 2,
+    "question_3": 2,
+    "question_4": 2,
+    "header": 1
+  },
+  "inkByPage": {
+    "1": 0.011837810129366475,
+    "2": 0.010889441682012658
+  }
+}
