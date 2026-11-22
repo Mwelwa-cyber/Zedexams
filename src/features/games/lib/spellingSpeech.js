@@ -8,8 +8,11 @@
  *      learner surface reads through — so the voice is whatever an admin has
  *      offered in /admin/voice, ElevenLabs included, with the server-side
  *      cache and cost tracking that already exist.
- *   3. The BROWSER voice. Already inside `speak()`'s own catch, so a device
- *      with no network, no session, or no cloud voice still plays the round.
+ *   3. The DEVICE voice (`speechSynthesis`), called directly — never through
+ *      `speak()`, which would re-ask /api/tts after tier 2 just failed. A
+ *      device with no network, no session or no cloud voice still plays the
+ *      round, EXCEPT inside the Android app: its WebView has no speech engine,
+ *      so there tiers 1 and 2 are the only voices (see functions/cors.js).
  *
  * ── Why tier 1 exists at all ──────────────────────────────────────────────
  * This file used to call `speechSynthesis` directly, which was wrong twice
@@ -95,7 +98,7 @@
  * not.
  */
 
-import { fetchSpeechUrl, speak as cloudSpeak, stopSpeaking } from '../../../utils/tts'
+import { fetchSpeechUrl, stopSpeaking } from '../../../utils/tts'
 import { resolveVoice } from './spellingVoiceCore'
 
 /**
@@ -493,11 +496,15 @@ export async function speakWord(word, { audioUrl = '', rate = 0.85 } = {}) {
     drop(fetched)
   }
 
-  // Tier 3 — the browser voice. `speak()` reaches it through its own fallback
-  // when the fetch returns nothing, which is also the signed-out path.
-  try {
-    await cloudSpeak(text.toLowerCase(), { rate })
-  } catch { /* speech is a bonus, never a blocker */ }
+  // Tier 3 — the DEVICE voice, directly. This used to be `speak()` from
+  // utils/tts, which asks /api/tts AGAIN before reaching the browser voice:
+  // tier 2 had just made that exact request and got nothing, so every failure
+  // paid a second round trip (the learner waited twice before hearing
+  // anything) and a second of their 60 daily calls. Whatever stopped tier 2
+  // — signed out, quota spent, a refused origin — stops the repeat too.
+  // A device with no speech engine (Android's WebView ships none) is silent
+  // here either way; on the app the cloud voice is what must work.
+  speakWithDevice(text, { rate })
 }
 
 /**

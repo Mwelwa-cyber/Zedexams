@@ -175,6 +175,19 @@ describe('spellingSpeech — warming the ladder before the word is asked for', (
     tts.stopSpeaking.mockReset()
   })
 
+  it('asks the cloud ONCE when it has nothing, then speaks with the device', async () => {
+    // Signed out, quota spent or a refused origin all look like this: the
+    // cloud returns no audio. The old tier 3 was `speak()`, which asked
+    // /api/tts a second time before reaching the device voice — a learner on
+    // a slow line waited for two failures, and paid two of their 60 calls.
+    tts.fetchSpeechUrl.mockResolvedValue(null)
+    const speech = await loadSpeech()
+    await speech.speakWord('SEPARATE')
+    expect(tts.fetchSpeechUrl).toHaveBeenCalledTimes(1)
+    expect(tts.speak).not.toHaveBeenCalled()
+    expect(spoken.at(-1)?.text).toBe('separate')
+  })
+
   it('prepares a pre-generated file without playing it, and without the cloud', async () => {
     const speech = await loadSpeech()
     expect(await speech.warmWord('NECESSARY', { audioUrl: FILE })).toBe(true)
@@ -252,9 +265,11 @@ describe('spellingSpeech — warming the ladder before the word is asked for', (
     stubAudio({ playFails: true })
     const speech = await loadSpeech()
     await speech.speakWord('NECESSARY', { audioUrl: FILE })
-    // Tier 1 refused, tier 2 fetched and refused, tier 3 read it.
+    // Tier 1 refused, tier 2 fetched and refused, tier 3 read it — with the
+    // DEVICE voice, not by asking /api/tts a second time.
     expect(tts.fetchSpeechUrl).toHaveBeenCalledTimes(1)
-    expect(tts.speak).toHaveBeenCalledTimes(1)
+    expect(tts.speak).not.toHaveBeenCalled()
+    expect(spoken.at(-1)?.text).toBe('necessary')
     // A file that would not play is not left in the cache to be offered again.
     stubAudio()
     await speech.speakWord('NECESSARY', { audioUrl: FILE })
