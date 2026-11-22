@@ -33,6 +33,9 @@ export const ADMIN_CAPPED = [
   'backfillReferralCodes', 'getTtsControlRoom',
   'adminSetUserStatus', 'adminSetUserRole', 'resetAdminMfa',
   'adminConfirmPayment', 'adminRejectPayment', 'adminGrantPremium', 'adminRevokePremium',
+  // Built by factories in agents/platformHealth.js (`function createX() { return onCall(`).
+  // initializeAgentPipeline is the function deploy #852 failed on for CPU quota.
+  'getPlatformHealth', 'initializeAgentPipeline', 'runSampleAgentJob',
 ]
 
 // Text of the balanced {...} starting at `open` (which must index a "{").
@@ -117,7 +120,8 @@ assert.ok(schedules >= 39, `expected at least 39 onSchedule calls, found ${sched
 passed++
 
 for (const name of ADMIN_CAPPED) {
-  const def = new RegExp(`(?:exports\\.${name}|\\b${name}\\s*[:=])\\s*=?\\s*onCall\\(`)
+  const factory = `create${name[0].toUpperCase()}${name.slice(1)}`
+  const def = new RegExp(`(?:exports\\.${name}|\\b${name}\\s*[:=])\\s*=?\\s*onCall\\(|\\bfunction\\s+${factory}\\s*\\([^)]*\\)\\s*\\{\\s*return\\s+onCall\\(`)
   const hit = files.find(([, src]) => def.test(src))
   if (!hit) { failures.push(`${name} — onCall definition not found`); continue }
   const [rel, src] = hit
