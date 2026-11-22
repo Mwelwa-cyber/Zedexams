@@ -27,7 +27,7 @@ browser-print baseline is comparable to.
 
 Two things hold that still, and both are needed:
 
-- **An exact pin in `package.json`** (`"puppeteer": "25.4.0"`, no caret). A caret
+- **An exact pin in `package.json`** (`"puppeteer": "25.18.1"`, no caret). A caret
   lets any lockfile regeneration move Chromium with no pull request to notice it
   in — the same breakage, arriving unannounced.
 - **A Dependabot `ignore`** covering all three semver update types. Without it the
