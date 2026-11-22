@@ -4,8 +4,10 @@
 // every list editor relies on. Plain node, like the other notes/lib tests.
 
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import {
   clamp01, pointToFraction, nextItemKey, nudge, labelDiagramIssues, moveInList,
+  labelPlacementIssues, LEARNER_BOX,
 } from './labelEditorCore.js'
 import {
   collectKeywordMarks, missingGlossaryWords, newStudyBlock, STUDY_BLOCK_TYPES,
@@ -92,6 +94,67 @@ test('missingGlossaryWords lists marked words with no entry, matching like the r
     { type: 'glossary', entries: [{ word: 'digestion', meaning: 'm' }, { word: 'either … or', meaning: 'm' }] },
   ]
   assert.deepEqual(missingGlossaryWords(blocks), ['gut'])
+})
+
+console.log('\nbox placement')
+
+test('the reported Rectum box (clamped to the right edge, on top of Pancreas) is flagged', () => {
+  // Measured off the learner screenshot of the Grade 7 digestive system.
+  const items = [
+    { label: 'Pancreas', x: 0.845, y: 0.591 },
+    { label: 'Rectum', x: 1, y: 0.632 },
+    { label: 'Anus', x: 0.846, y: 0.913 },
+  ]
+  const issues = labelPlacementIssues(items)
+  assert.ok(issues.some((m) => /"Rectum" hangs off the edge/.test(m)), issues.join(' | '))
+  assert.ok(issues.some((m) => /"Pancreas" and "Rectum" overlap/.test(m)), issues.join(' | '))
+  assert.ok(!issues.some((m) => /Anus/.test(m)))
+  assert.ok(labelDiagramIssues({ url: 'x.png', items }).length >= 2)
+})
+
+test('the edge rule is half the learner box: inside passes, outside fails, on all four sides', () => {
+  const half = LEARNER_BOX.w / 2
+  const halfH = LEARNER_BOX.h / 2
+  assert.deepEqual(labelPlacementIssues([{ label: 'A', x: half, y: 0.5 }]), [])
+  assert.deepEqual(labelPlacementIssues([{ label: 'A', x: 1 - half, y: 0.5 }]), [])
+  for (const [x, y] of [[half - 0.01, 0.5], [1 - half + 0.01, 0.5], [0.5, halfH - 0.01], [0.5, 1 - halfH + 0.01], [0, 0], [1, 1]]) {
+    assert.equal(labelPlacementIssues([{ label: 'A', x, y }]).length, 1, `${x},${y} should hang off`)
+  }
+})
+
+test('boxes overlap only when they are closer than one box in BOTH directions', () => {
+  const a = { label: 'A', x: 0.5, y: 0.5 }
+  assert.equal(labelPlacementIssues([a, { label: 'B', x: 0.6, y: 0.53 }]).length, 1)
+  assert.deepEqual(labelPlacementIssues([a, { label: 'B', x: 0.5 + LEARNER_BOX.w, y: 0.5 }]), [])
+  assert.deepEqual(labelPlacementIssues([a, { label: 'B', x: 0.5, y: 0.5 + LEARNER_BOX.h }]), [])
+})
+
+test('boxes not yet placed (no coordinates) are not judged', () => {
+  assert.deepEqual(labelPlacementIssues([{ label: 'A' }, { label: 'B' }]), [])
+  assert.deepEqual(labelPlacementIssues(null), [])
+})
+
+test('LEARNER_BOX matches the learner stylesheet', () => {
+  const css = readFileSync(new URL('../reader/reader.css', import.meta.url), 'utf8')
+  const rule = css.match(/\.lhx-lbl-slot\s*\{([^}]*)\}/)
+  assert.ok(rule, '.lhx-lbl-slot rule not found')
+  assert.match(rule[1], /transform:\s*translate\(-50%,\s*-50%\)/, 'boxes are no longer centred on the anchor')
+  const pct = (re) => Number(rule[1].match(re)[1])
+  assert.equal(pct(/(?:^|[\s;])width:\s*([\d.]+)%/), Math.round(LEARNER_BOX.w * 1000) / 10)
+  assert.equal(pct(/min-height:\s*([\d.]+)%/), Math.round(LEARNER_BOX.h * 1000) / 10)
+})
+
+test('every label-the-diagram block in the Grade 7 seed is placed cleanly', () => {
+  const seed = JSON.parse(readFileSync(new URL('../seed/grade7Seed.json', import.meta.url), 'utf8'))
+  let checked = 0
+  for (const note of seed.notes || []) {
+    for (const block of note.blocks || []) {
+      if (block?.type !== 'labeldiagram') continue
+      checked += 1
+      assert.deepEqual(labelPlacementIssues(block.items), [], `${note.seedKey || note.title}`)
+    }
+  }
+  assert.ok(checked >= 1, 'no label diagrams found in the seed')
 })
 
 console.log('\nblock validity')

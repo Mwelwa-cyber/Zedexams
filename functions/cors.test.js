@@ -39,6 +39,32 @@ ok("denies bare web.app",
 ok("denies other localhost port",
   isAllowedOrigin("http://localhost:3000") === false);
 
+// ── The Android app's WebView origin ─────────────────────────────────────
+// Derived from capacitor.config.json rather than restated, so a change to
+// the app's scheme or hostname fails here instead of silently blocking every
+// /api/* reply inside the app (which is how the spelling game went mute).
+{
+  const path = require("node:path");
+  const fs = require("node:fs");
+  const cap = JSON.parse(fs.readFileSync(
+      path.join(__dirname, "..", "capacitor.config.json"), "utf8"));
+  const scheme = (cap.server && cap.server.androidScheme) || "https";
+  const host = (cap.server && cap.server.hostname) || "localhost";
+  const appOrigin = `${scheme}://${host}`;
+  ok(`allows the Android app's WebView origin (${appOrigin})`,
+      isAllowedOrigin(appOrigin) === true);
+  const r = fakeRes();
+  applyCors(fakeReq(appOrigin), r);
+  ok("echoes the Android app origin back",
+      r.headers["Access-Control-Allow-Origin"] === appOrigin);
+}
+ok("denies plain-http localhost (not the app's scheme)",
+  isAllowedOrigin("http://localhost") === false);
+ok("denies https localhost on another port",
+  isAllowedOrigin("https://localhost:8443") === false);
+ok("denies a localhost suffix-spoof",
+  isAllowedOrigin("https://localhost.evil.com") === false);
+
 // ── applyCors behaviour with a fake req/res ──────────────────────────────
 function fakeRes() {
   const headers = {};

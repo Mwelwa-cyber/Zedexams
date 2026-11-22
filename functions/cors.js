@@ -29,6 +29,21 @@ const ALLOWED_ORIGINS = [
   "https://examsprepzambia.firebaseapp.com",
   "http://localhost:5173",
   "http://127.0.0.1:5173",
+  // The ANDROID APP. Capacitor serves the bundled web app from
+  // `<androidScheme>://localhost` (capacitor.config.json → server.androidScheme
+  // = "https"), and its fetch() runs inside the WebView, so a call to
+  // https://zedexams.com/api/... IS a cross-origin browser request carrying
+  // `Origin: https://localhost` — not the Origin-less native request the
+  // applyCors() note below describes. Without this entry the WebView blocked
+  // every /api/tts reply, and because Android's WebView has no speechSynthesis
+  // to fall back on, the spelling game in the app said nothing at all.
+  // cors.test.js derives this origin from capacitor.config.json, so changing
+  // the scheme or hostname there fails CI instead of silencing the app.
+  // Exposure: the endpoints still require a Firebase ID token in the
+  // Authorization header (no cookies, no Allow-Credentials), so a page on
+  // someone's own https://localhost gains nothing a script without the token
+  // could not already do.
+  "https://localhost",
 ];
 
 // Firebase Hosting preview channels: examsprepzambia--<channel>-<hash>.web.app
@@ -50,8 +65,9 @@ const DEFAULT_METHODS = "GET, POST, OPTIONS";
 /**
  * Set CORS response headers from the request Origin.
  *
- * - No Origin header (non-browser: Capacitor native, curl, server) →
- *   ACAO is not set. CORS does not apply to non-browser clients, so the
+ * - No Origin header (non-browser: curl, server, a native HTTP plugin) →
+ *   ACAO is not set. NOT the Capacitor app's fetch(): that runs in the
+ *   WebView and sends `Origin: https://localhost` (allow-listed above). CORS does not apply to non-browser clients, so the
  *   request proceeds normally — native must keep working.
  * - Allowed browser Origin → echo that exact origin back (never `*`).
  * - Disallowed browser Origin → ACAO not set; the browser blocks the
