@@ -119,23 +119,9 @@ async function assertMayStart(uid, paper, mode, questionCount) {
   );
 }
 
-/**
- * The entitlement read, kept deliberately small and local.
- *
- * It mirrors `hasPremiumAccess` in the payment engine, which is a browser
- * module this runtime cannot import. The shapes are checked in the order the
- * activation path writes them; an unreadable or absent field is NOT premium,
- * which fails closed toward practice — and practice is a real, complete,
- * useful thing to be failed closed into.
- */
-function hasEntitlement(profile) {
-  if (!profile) return false;
-  if (profile.role === "admin" || profile.role === "super_admin") return true;
-  const until = profile.subscriptionExpiresAt || profile.premiumUntil || profile.planExpiresAt;
-  const ms = until && typeof until.toMillis === "function" ? until.toMillis() : Number(until);
-  if (Number.isFinite(ms) && ms > Date.now()) return true;
-  return profile.subscriptionStatus === "active" || profile.plan === "premium";
-}
+// The entitlement rule lives in paperQuizCore.js (pure, node-tested); see
+// hasEntitlement there for why it reads exactly these fields.
+const {hasEntitlement} = core;
 
 // ── startAttempt ─────────────────────────────────────────────────────────
 

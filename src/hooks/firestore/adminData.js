@@ -521,7 +521,14 @@ export async function getRecentConfirmedPayments(limitCount = 25) {
 }
 
 export async function revokePremium(userId) {
+  // Mirrors buildRevokeFields in functions/adminPaymentsCore.js exactly — see
+  // there for why the lifetime and teacher-tier fields must be cleared too.
   await updateDoc(doc(db, 'users', userId), {
+    subscriptionLifetime: false,
+    teacherPlan: null,
+    teacherPlanExpiresAt: null,
+    // teacherPlanActivatedAt is kept on purpose: it is the "has paid before"
+    // marker that stops a revoked teacher claiming a fresh trial.
     plan: 'free',
     premium: false,
     isPremium: false,

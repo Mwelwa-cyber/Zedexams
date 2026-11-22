@@ -33,6 +33,59 @@ function test(name, fn) {
     process.exitCode = 1;
   }
 }
+
+// ── hasEntitlement: the server's exam-mode control ────────────────────────
+// Built from EXACTLY the fields functions/subscriptionActivation.js writes.
+// Nothing clears the paid flags when a plan ends, so the expiry is the whole
+// control — the bug this pins read three field names activation never writes
+// and fell back to the flags, so anyone who had ever paid kept exam access
+// forever.
+{
+  const NOW = Date.UTC(2026, 10, 22, 10);
+  const DAY = 86400000;
+  const ts = (ms) => ({toMillis: () => ms});
+  const activated = (expiryMs) => ({
+    role: "learner", plan: "premium", premium: true, isPremium: true,
+    paymentStatus: "active", subscriptionStatus: "active",
+    subscriptionPlan: "weekly", subscriptionExpiry: ts(expiryMs),
+  });
+
+  test("hasEntitlement: an active paid plan is entitled", () => {
+    assert.equal(core.hasEntitlement(activated(NOW + 3 * DAY), NOW), true);
+  });
+  test("hasEntitlement: a LAPSED plan is not, even with every paid flag still set", () => {
+    assert.equal(core.hasEntitlement(activated(NOW - DAY), NOW), false);
+    assert.equal(core.hasEntitlement(activated(NOW - 60 * DAY), NOW), false);
+  });
+  test("hasEntitlement: paid flags with no expiry are NOT entitled unless the grant is lifetime", () => {
+    const noExpiry = {...activated(NOW), subscriptionExpiry: null};
+    assert.equal(core.hasEntitlement(noExpiry, NOW), false);
+    assert.equal(core.hasEntitlement({...noExpiry, subscriptionLifetime: true}, NOW), true);
+  });
+  test("hasEntitlement: an expiry with no paid flag (an admin revoke) is not entitled", () => {
+    const revoked = {role: "learner", plan: "free", premium: false, isPremium: false,
+      paymentStatus: "inactive", subscriptionStatus: "inactive",
+      subscriptionExpiry: ts(NOW + 10 * DAY)};
+    assert.equal(core.hasEntitlement(revoked, NOW), false);
+  });
+  test("hasEntitlement: the old field names no longer grant anything on their own", () => {
+    const stale = {role: "learner", subscriptionExpiresAt: ts(NOW + DAY),
+      premiumUntil: ts(NOW + DAY), planExpiresAt: ts(NOW + DAY)};
+    assert.equal(core.hasEntitlement(stale, NOW), false);
+  });
+  test("hasEntitlement: Date and ISO-string expiries are read too", () => {
+    assert.equal(core.hasEntitlement({...activated(0), subscriptionExpiry: new Date(NOW + DAY)}, NOW), true);
+    assert.equal(core.hasEntitlement({...activated(0), subscriptionExpiry: new Date(NOW + DAY).toISOString()}, NOW), true);
+    assert.equal(core.hasEntitlement({...activated(0), subscriptionExpiry: "not a date"}, NOW), false);
+  });
+  test("hasEntitlement: admin and superAdmin always pass; nobody else without a profile", () => {
+    assert.equal(core.hasEntitlement({role: "admin"}, NOW), true);
+    assert.equal(core.hasEntitlement({role: "superAdmin"}, NOW), true);
+    assert.equal(core.hasEntitlement(null, NOW), false);
+    assert.equal(core.hasEntitlement({role: "learner"}, NOW), false);
+  });
+}
+
 const asyncTests = [];
 function testAsync(name, fn) {
   asyncTests.push([name, fn]);

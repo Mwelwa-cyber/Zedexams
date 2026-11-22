@@ -23,12 +23,15 @@ import {
   nextMonthlyReset,
   nextWeeklyReset,
   planChipLabel,
+  planChipTone,
+  activeTeacherTrialEndsAt,
   quotaLeft,
   isGuardianPayer,
   mayShowPrice,
   resolveAgeBand,
   resolvePlanState,
 } from '../src/services/entitlements/planState.js'
+import { resolveTeacherPlan } from '../src/engines/payment-engine/teacherPlans.js'
 import {
   FEATURE_GATES,
   FREE_PAPERS_PER_WEEK,
@@ -117,6 +120,86 @@ test('an active paid learner is unlocked and reports their ladder rung', () => {
   assert.equal(s.status, PLAN_STATUS.ACTIVE)
   assert.equal(s.plan, 'term')
   assert.equal(s.unlocked, true)
+})
+
+test('a lapsed learner with the paid flags ACTIVATION leaves behind still gets a grace countdown', () => {
+  // The shape functions/subscriptionActivation.js writes. Nothing ever clears
+  // premium / subscriptionStatus / plan at expiry, so every real lapsed
+  // learner looks like this — and the fixture below, with no paid flags, is
+  // a shape activation never produces. graceEndsAt used to be null here.
+  const expiry = new Date(NOW.getTime() - 1 * DAY)
+  const s = resolvePlanState({
+    role: 'learner', isMinor: false,
+    plan: 'premium', premium: true, isPremium: true,
+    paymentStatus: 'active', subscriptionStatus: 'active',
+    subscriptionPlan: 'weekly', subscriptionPaymentId: 'pay_1', subscriptionExpiry: expiry,
+  }, { now: NOW })
+  assert.equal(s.status, PLAN_STATUS.GRACE)
+  assert.equal(s.unlocked, true)
+  assert.equal(s.graceEndsAt?.getTime(), expiry.getTime() + GRACE_DAYS * DAY)
+  assert.equal(planChipLabel(s, NOW), 'Grace · 2 days left')
+})
+
+test('graceEndsAt is null outside grace — active and fully expired plans have nothing to count down', () => {
+  const active = resolvePlanState({ role: 'learner', isMinor: false, premium: true,
+    subscriptionExpiry: new Date(NOW.getTime() + 5 * DAY) }, { now: NOW })
+  assert.equal(active.graceEndsAt, null)
+  const gone = resolvePlanState({ role: 'learner', isMinor: false, premium: true,
+    subscriptionPaymentId: 'pay_1', subscriptionExpiry: new Date(NOW.getTime() - 30 * DAY) }, { now: NOW })
+  assert.equal(gone.status, PLAN_STATUS.EXPIRED)
+  assert.equal(gone.unlocked, false)
+  assert.equal(gone.graceEndsAt, null)
+})
+
+test('a teacher in the free trial is on the TRIAL plan, not Free, with a countdown', () => {
+  // Exactly what functions/teacherTrial/onUserCreated.js writes.
+  const trial = { role: 'teacher', teacherPlan: 'trial', teacherTrialStartedAt: new Date(NOW.getTime() - 3 * DAY),
+    teacherTrialEndsAt: new Date(NOW.getTime() + 4 * DAY) }
+  const s = resolvePlanState(trial, { now: NOW, used: { aiGenerationsThisMonth: 12 }, quotas: { aiGenerationsThisMonth: 200 } })
+  assert.equal(s.plan, 'trial')
+  assert.equal(s.status, PLAN_STATUS.ACTIVE)
+  assert.equal(s.unlocked, true)
+  assert.equal(planChipLabel(s, NOW), 'Trial · 4 days left')
+  // Not 'premium' — PlanChip hides a premium-toned chip, and this one has a countdown.
+  assert.equal(planChipTone(s), 'free')
+})
+
+test('an ENDED teacher trial is the Free plan, not a lapse and not grace', () => {
+  // teacherPlan stays the literal 'trial' forever; only the date says it ended.
+  const ended = { role: 'teacher', teacherPlan: 'trial', teacherTrialEndsAt: new Date(NOW.getTime() - 1 * DAY) }
+  const s = resolvePlanState(ended, { now: NOW, used: { aiGenerationsThisMonth: 1 }, quotas: { aiGenerationsThisMonth: 10 } })
+  assert.equal(s.plan, 'free')
+  assert.equal(s.status, PLAN_STATUS.ACTIVE)
+  assert.equal(s.unlocked, false)
+  assert.equal(s.graceEndsAt, null)
+  assert.equal(planChipLabel(s, NOW), 'Free · 9 of 10 left')
+})
+
+test('only a TEACHER can be on the teacher trial', () => {
+  const learner = { role: 'learner', isMinor: false, teacherPlan: 'trial', teacherTrialEndsAt: new Date(NOW.getTime() + 4 * DAY) }
+  assert.equal(resolvePlanState(learner, { now: NOW }).plan, 'free')
+})
+
+test('activeTeacherTrialEndsAt agrees with resolveTeacherPlan on every trial shape', () => {
+  // planState may not import the engine (services/ sits below engines/), so it
+  // restates the trial rule; this is what keeps the two from drifting.
+  const shapes = [
+    { teacherPlan: 'trial', teacherTrialEndsAt: new Date(NOW.getTime() + DAY) },
+    { teacherPlan: 'trial', teacherTrialEndsAt: new Date(NOW.getTime() - DAY) },
+    { teacherPlan: 'trial', teacherTrialEndsAt: null },
+    { teacherPlan: 'trial' },
+    { teacherPlan: 'pro', teacherPlanExpiresAt: new Date(NOW.getTime() + DAY) },
+    { teacherPlan: 'free' },
+    {},
+  ]
+  for (const shape of shapes) {
+    const profile = { role: 'teacher', ...shape }
+    assert.equal(
+      activeTeacherTrialEndsAt(profile, NOW) != null,
+      resolveTeacherPlan(profile, NOW) === 'trial',
+      `disagree on ${JSON.stringify(shape)}`,
+    )
+  }
 })
 
 test('ACCEPTANCE 8 — within 3 days of expiry every gated feature stays unlocked', () => {

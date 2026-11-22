@@ -97,6 +97,23 @@ function isTrialReminderDue(user, now = new Date()) {
  * copy always says "ends soon" language a teacher can act on ("tomorrow",
  * "in 2 days"), never "in 0 days" or a negative count from a rounding edge.
  */
+/**
+ * The slice of users the reminder cron should READ: trials ending inside the
+ * reminder window, i.e. (now, now + REMINDER_WINDOW_HOURS].
+ *
+ * The cron used to select `teacherPlan == "trial"` with a 500-row cap. Nothing
+ * resets teacherPlan when a trial ends, so every expired trial stays "trial"
+ * forever and keeps matching; once 500 teachers had ever trialled, each run
+ * read the same 500 (by document order) and newer trials silently never got
+ * their reminder. A range on the END DATE reads only trials that can be due,
+ * which is a handful a day however many have ever existed. isTrialReminderDue
+ * still makes the final call (teacherPlan, already-sent, exact window).
+ */
+function trialReminderQueryWindow(now = new Date()) {
+  const fromMs = now.getTime();
+  return {fromMs, toMs: fromMs + REMINDER_WINDOW_HOURS * 60 * 60 * 1000};
+}
+
 function daysRemaining(endsAtMs, now = new Date()) {
   const ms = Number(endsAtMs) - now.getTime();
   return Math.max(1, Math.ceil(ms / MS_PER_DAY));
@@ -344,6 +361,7 @@ module.exports = {
   REMINDER_WINDOW_HOURS,
   resolveTeacherTrialGrant,
   isTrialReminderDue,
+  trialReminderQueryWindow,
   daysRemaining,
   buildTrialReminderEmail,
   EXISTING_TEACHER_OFFER_SOURCE,

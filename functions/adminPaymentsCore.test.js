@@ -124,4 +124,38 @@ test("buildRevokeFields returns the free-tier reset shape", () => {
   assert.strictEqual(f.subscriptionPaymentId, null);
 });
 
+test("buildRevokeFields clears the lifetime and teacher-tier grants too", () => {
+  // A revoke that leaves either of these behind does not revoke: planState.js
+  // treats subscriptionLifetime as permanently active, and the studio usage
+  // meter reads only teacherPlan / teacherPlanExpiresAt.
+  const f = buildRevokeFields();
+  assert.strictEqual(f.subscriptionLifetime, false);
+  assert.strictEqual(f.teacherPlan, null);
+  assert.strictEqual(f.teacherPlanExpiresAt, null);
+});
+
+test("revoke KEEPS the paid-history marker, so a revoked teacher cannot claim a fresh trial", () => {
+  // teacherPlanActivatedAt grants nothing; it is what the existing-teacher
+  // trial offer refuses on ("previously-paid"). Clearing it on revoke would
+  // make every revoked Pro/Max teacher trial-eligible again.
+  const f = buildRevokeFields();
+  assert.ok(!("teacherPlanActivatedAt" in f), "revoke must not touch teacherPlanActivatedAt");
+  const {resolveExistingTeacherTrialEligibility} = require("./teacherTrial/teacherTrialCore");
+  const paidThenRevoked = {role: "teacher", teacherPlanActivatedAt: new Date("2026-01-01"), ...f};
+  const eligibility = resolveExistingTeacherTrialEligibility(paidThenRevoked, new Date("2026-11-22"));
+  assert.strictEqual(eligibility.eligible, false);
+  assert.strictEqual(eligibility.reason, "previously-paid");
+});
+
+test("revoke clears every field a grant sets that grants access", () => {
+  // Anything buildActivationFields can set to a truthy access value must be
+  // reset by buildRevokeFields, or some reader keeps the grant alive.
+  const grant = buildActivationFields({planId: "pro_monthly", expiry: new Date(), adminId: "a",
+    provider: "manual_grant", paymentId: "p", lifetime: true});
+  const revoke = buildRevokeFields();
+  for (const key of Object.keys(grant)) {
+    assert.ok(key in revoke, `revoke leaves ${key} as the grant set it`);
+  }
+});
+
 console.log(`\n${passed} passed`);

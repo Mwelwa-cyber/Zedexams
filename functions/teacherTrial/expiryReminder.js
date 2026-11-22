@@ -26,10 +26,10 @@
  * query this narrow.
  */
 
-const {FieldValue, getFirestore} = require("firebase-admin/firestore");
+const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
 // nodemailer is required lazily at its use site — see invoiceGenerator.js.
 
-const {isTrialReminderDue, buildTrialReminderEmail} = require("./teacherTrialCore");
+const {isTrialReminderDue, buildTrialReminderEmail, trialReminderQueryWindow} = require("./teacherTrialCore");
 
 // Defensive cap — the trial population is expected to be tiny, but a stuck
 // reminder flag (or a burst of signups) must not turn one run into an
@@ -60,8 +60,13 @@ async function runTeacherTrialExpiryReminder({senderEmail, senderPassword, now =
   const summary = {checked: 0, sent: 0, skipped: 0, failed: 0};
   const db = getFirestore();
 
+  // Only trials that END inside the reminder window — see
+  // trialReminderQueryWindow for why this is not `teacherPlan == "trial"`.
+  // A single-field range, so no composite index is needed.
+  const {fromMs, toMs} = trialReminderQueryWindow(now);
   const snap = await db.collection("users")
-      .where("teacherPlan", "==", "trial")
+      .where("teacherTrialEndsAt", ">", Timestamp.fromMillis(fromMs))
+      .where("teacherTrialEndsAt", "<=", Timestamp.fromMillis(toMs))
       .limit(MAX_PER_RUN)
       .get();
 

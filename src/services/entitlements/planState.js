@@ -51,6 +51,27 @@ export const AGE_BAND = Object.freeze({
 /** Days of full access after a subscription expires. */
 export const GRACE_DAYS = 3
 
+/**
+ * Is this a teacher inside the free teacher trial (functions/teacherTrial/)?
+ *
+ * The trial is the Pro tier for TEACHER_TRIAL_DAYS, stamped as
+ * `teacherPlan: 'trial'` + `teacherTrialEndsAt`. `teacherPlan` stays the
+ * literal string 'trial' after it ends — nothing resets it — so the date is the
+ * whole test. This is the trial half of `resolveTeacherPlan`
+ * (src/engines/payment-engine/teacherPlans.js), restated because services/ sits
+ * below engines/ in the layering and may not import it; test:entitlements fails
+ * if the two ever disagree.
+ *
+ * It matters here because without it a teacher mid-trial resolved to the FREE
+ * plan, and the header chip told them "Free · 188 of 200 left" while they had
+ * Pro limits and a trial ending in days that nothing on screen mentioned.
+ */
+export function activeTeacherTrialEndsAt(profile, now = new Date()) {
+  if (profile?.role !== 'teacher' || profile?.teacherPlan !== 'trial') return null
+  const ends = toDate(profile?.teacherTrialEndsAt)
+  return ends && ends > now ? ends : null
+}
+
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 
 /**
@@ -193,6 +214,7 @@ export function resolvePlanState(profile, opts = {}) {
   const expiresAt = toDate(profile?.subscriptionExpiry) || toDate(profile?.teacherPlanExpiresAt)
   const paid = hasPaidFlag(profile)
   const lifetime = profile?.subscriptionLifetime === true
+  const trialEndsAt = activeTeacherTrialEndsAt(profile, now)
 
   // Staff and lifetime grants are permanently active with no expiry to fade
   // from. Everyone else: paid + unexpired is active; paid-but-lapsed enters
@@ -204,6 +226,12 @@ export function resolvePlanState(profile, opts = {}) {
   if (isStaff || lifetime) {
     status = PLAN_STATUS.ACTIVE
     plan = 'term'
+  } else if (trialEndsAt) {
+    // A live teacher trial is the Pro tier: active, nothing gated. It is
+    // checked before the paid branch because a trial account carries no paid
+    // flag, and before everSubscribed so a trial is never read as a lapse.
+    status = PLAN_STATUS.ACTIVE
+    plan = 'trial'
   } else if (paid && (!expiresAt || expiresAt > now)) {
     status = PLAN_STATUS.ACTIVE
     plan = CHECKOUT_TO_RUNG[profile?.subscriptionPlan] || 'month'
@@ -218,7 +246,13 @@ export function resolvePlanState(profile, opts = {}) {
     plan = 'free'
   }
 
-  const graceEndsAt = !isStaff && !lifetime && expiresAt && !paid
+  // Keyed on the STATUS, not on `!paid`. Nothing clears the paid flags when a
+  // period ends (activation sets premium/subscriptionStatus/plan and no cron
+  // resets them), so every real lapsed learner still reads as `paid` — and a
+  // `!paid` guard here left graceEndsAt null for all of them, which is why the
+  // chip said "Grace" with no countdown and the reminder card and ribbon lost
+  // their day count.
+  const graceEndsAt = status === PLAN_STATUS.GRACE && expiresAt
     ? new Date(expiresAt.getTime() + GRACE_DAYS * MS_PER_DAY)
     : null
 
@@ -249,6 +283,7 @@ export function resolvePlanState(profile, opts = {}) {
     status,
     expiresAt,
     graceEndsAt,
+    trialEndsAt,
     role,
     ageBand: resolveAgeBand(profile),
     unlocked,
@@ -303,6 +338,14 @@ export function graceDaysLeft(planState, now = new Date()) {
   return Math.max(1, Math.ceil((ends.getTime() - from.getTime()) / MS_PER_DAY))
 }
 
+/** Whole days of the teacher trial remaining, rounded up like graceDaysLeft. */
+export function trialDaysLeft(planState, now = new Date()) {
+  const ends = toDate(planState?.trialEndsAt)
+  if (!ends) return null
+  const from = toDate(now) || new Date()
+  return Math.max(1, Math.ceil((ends.getTime() - from.getTime()) / MS_PER_DAY))
+}
+
 /**
  * Chip text: `Free · 2 of 3 left` (teacher) / `Free · 2 left` (learner) /
  * `0 left` / `Grace · 2 days left` / `Premium`.
@@ -312,6 +355,10 @@ export function graceDaysLeft(planState, now = new Date()) {
  */
 export function planChipLabel(planState, now = new Date()) {
   if (!planState) return ''
+  if (planState.plan === 'trial') {
+    const days = trialDaysLeft(planState, now)
+    return days == null ? 'Trial' : `Trial · ${days} ${days === 1 ? 'day' : 'days'} left`
+  }
   if (planState.status === PLAN_STATUS.GRACE) {
     const days = graceDaysLeft(planState, now)
     if (days == null) return 'Grace'
@@ -344,6 +391,11 @@ export function planChipHint(planState, now = new Date()) {
     const left = quotaLeft({ ...planState, unlocked: false }, 'aiGenerationsThisMonth')
     return ` On the free plan you have ${left} of ${cap} AI generations left this month.`
   }
+  if (planState.plan === 'trial') {
+    const days = trialDaysLeft(planState, now)
+    const when = days == null ? 'for a few more days' : `for ${days} more ${days === 1 ? 'day' : 'days'}`
+    return `Free Pro trial: every studio is open with Pro limits ${when}. After that you move to the Free plan unless you upgrade.`
+  }
   if (planState.status === PLAN_STATUS.GRACE) {
     const days = graceDaysLeft(planState, now)
     const when = days == null ? 'for a few more days' : `for ${days} more ${days === 1 ? 'day' : 'days'}`
@@ -356,6 +408,9 @@ export function planChipHint(planState, now = new Date()) {
 /** Chip tone, so the header does not re-derive "is this the amber one". */
 export function planChipTone(planState) {
   if (!planState) return 'neutral'
+  // Not 'premium': PlanChip hides a premium-toned chip, and a trial is the one
+  // unlocked state that has a countdown worth showing.
+  if (planState.plan === 'trial') return 'free'
   if (planState.status === PLAN_STATUS.GRACE) return 'warn'
   if (planState.unlocked) return 'premium'
   const key = planState.role === 'teacher' ? 'aiGenerationsThisMonth' : 'papersThisWeek'
