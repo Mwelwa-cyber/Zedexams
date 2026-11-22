@@ -190,6 +190,9 @@ function createGetPlatformHealth(anthropicApiKeySecret) {
   return onCall({
     secrets: [anthropicApiKeySecret],
     region: "us-central1",
+    // Admin-only: one instance serves 80 concurrent requests, and an uncapped
+    // callable reserves up to 100 vCPUs of the us-central1 CPU quota.
+    maxInstances: 2,
     timeoutSeconds: 30,
     memory: "256MiB",
     enforceAppCheck: shouldEnforceAppCheck("getPlatformHealth"),
@@ -219,6 +222,9 @@ function createGetPlatformHealth(anthropicApiKeySecret) {
 function createInitializeAgentPipeline() {
   return onCall({
     region: "us-central1",
+    // Admin-only: one instance serves 80 concurrent requests, and an uncapped
+    // callable reserves up to 100 vCPUs of the us-central1 CPU quota.
+    maxInstances: 2,
     timeoutSeconds: 30,
     memory: "256MiB",
     enforceAppCheck: shouldEnforceAppCheck("initializeAgentPipeline"),
@@ -251,6 +257,9 @@ function createInitializeAgentPipeline() {
 function createRunSampleAgentJob() {
   return onCall({
     region: "us-central1",
+    // Admin-only: one instance serves 80 concurrent requests, and an uncapped
+    // callable reserves up to 100 vCPUs of the us-central1 CPU quota.
+    maxInstances: 2,
     timeoutSeconds: 30,
     memory: "256MiB",
     enforceAppCheck: shouldEnforceAppCheck("runSampleAgentJob"),

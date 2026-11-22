@@ -1635,6 +1635,7 @@
       "options": {
         "secrets": "[anthropicApiKeySecret]",
         "region": "\"us-central1\"",
+        "maxInstances": "2",
         "timeoutSeconds": "30",
         "memory": "\"256MiB\"",
         "enforceAppCheck": "shouldEnforceAppCheck(\"getPlatformHealth\")"
@@ -1925,6 +1926,7 @@
       "inline": false,
       "options": {
         "region": "\"us-central1\"",
+        "maxInstances": "2",
         "timeoutSeconds": "30",
         "memory": "\"256MiB\"",
         "enforceAppCheck": "shouldEnforceAppCheck(\"initializeAgentPipeline\")"
@@ -3011,6 +3013,7 @@
       "inline": false,
       "options": {
         "region": "\"us-central1\"",
+        "maxInstances": "2",
         "timeoutSeconds": "30",
         "memory": "\"256MiB\"",
         "enforceAppCheck": "shouldEnforceAppCheck(\"runSampleAgentJob\")"
