@@ -14,6 +14,7 @@ const {
   REMINDER_WINDOW_HOURS,
   resolveTeacherTrialGrant,
   isTrialReminderDue,
+  trialReminderQueryWindow,
   daysRemaining,
   buildTrialReminderEmail,
   EXISTING_TEACHER_OFFER_SOURCE,
@@ -296,6 +297,26 @@ test("an unrecognised teacherPlan value is reported ambiguous, never silently el
 
 test("malformed input never throws", () => {
   assert.strictEqual(resolveTeacherTrialOfferBackfillDecision(null, NOW).decision, "skip");
+});
+
+test("trialReminderQueryWindow reads only trials ending inside the reminder window", () => {
+  // The cron queries this range on teacherTrialEndsAt. It replaced
+  // `teacherPlan == "trial"` + limit(500), which every EXPIRED trial also
+  // matched (teacherPlan is never reset), so past 500 trial teachers the
+  // newest ones stopped being reminded.
+  const now = new Date(Date.UTC(2026, 10, 22, 8));
+  const {fromMs, toMs} = trialReminderQueryWindow(now);
+  assert.strictEqual(fromMs, now.getTime());
+  assert.strictEqual(toMs - fromMs, REMINDER_WINDOW_HOURS * 60 * 60 * 1000);
+  // Everything the window admits, the due-check agrees is due; the edges match.
+  const inside = {teacherPlan: "trial", teacherTrialEndsAtMs: fromMs + 60 * 60 * 1000};
+  const atEnd = {teacherPlan: "trial", teacherTrialEndsAtMs: toMs};
+  const past = {teacherPlan: "trial", teacherTrialEndsAtMs: fromMs - 1};
+  const beyond = {teacherPlan: "trial", teacherTrialEndsAtMs: toMs + 1};
+  assert.strictEqual(isTrialReminderDue(inside, now), true);
+  assert.strictEqual(isTrialReminderDue(atEnd, now), true);
+  assert.strictEqual(isTrialReminderDue(past, now), false);
+  assert.strictEqual(isTrialReminderDue(beyond, now), false);
 });
 
 console.log(`\nteacherTrialCore: ${passed} tests passed`);
