@@ -246,6 +246,48 @@ function buildAbandon(attempt, nowMs) {
   };
 }
 
+/**
+ * The entitlement read, kept deliberately small and local.
+ *
+ * It mirrors `hasPremiumAccess` (src/engines/payment-engine/subscriptionConfig.js),
+ * a browser module this runtime cannot import, and `hasValidEntitlement()` in
+ * firestore.rules: a paid flag AND (an explicit lifetime grant OR a
+ * `subscriptionExpiry` still in the future).
+ *
+ * The expiry is the whole control, because nothing ever clears the paid flags
+ * — no cron flips `premium` back at the end of a period. This used to read
+ * `subscriptionExpiresAt` / `premiumUntil` / `planExpiresAt`, none of which any
+ * activation path writes (activation writes `subscriptionExpiry`), and then
+ * fall back to the flags alone — so every learner who had EVER paid kept
+ * server-side exam access forever after their plan lapsed.
+ *
+ * An unreadable or absent expiry is NOT premium unless the grant is lifetime,
+ * which fails closed toward practice — and practice is a real, complete,
+ * useful thing to be failed closed into.
+ */
+function hasEntitlement(profile, nowMs = Date.now()) {
+  if (!profile) return false;
+  // `superAdmin` is the spelling the rest of the product uses
+  // (src/utils/permissions.js, teacherTools/usageMeter.js); `super_admin` is
+  // kept because it was accepted here before and costs nothing.
+  if (profile.role === "admin" || profile.role === "superAdmin" ||
+      profile.role === "super_admin") return true;
+  const paidFlag =
+    profile.premium === true ||
+    profile.isPremium === true ||
+    profile.paymentStatus === "active" ||
+    profile.subscriptionStatus === "active" ||
+    profile.plan === "premium";
+  if (!paidFlag) return false;
+  if (profile.subscriptionLifetime === true) return true;
+  const until = profile.subscriptionExpiry;
+  let ms = NaN;
+  if (until && typeof until.toMillis === "function") ms = until.toMillis();
+  else if (until instanceof Date) ms = until.getTime();
+  else if (until != null) ms = Number(new Date(until).getTime());
+  return Number.isFinite(ms) && ms > nowMs;
+}
+
 module.exports = {
   ATTEMPT_STATUS,
   TERMINAL_STATUSES,
@@ -260,4 +302,5 @@ module.exports = {
   attemptIsWritable,
   timeUsedSeconds,
   buildAbandon,
+  hasEntitlement,
 };

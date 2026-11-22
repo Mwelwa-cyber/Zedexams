@@ -119,6 +119,35 @@ test('an active paid learner is unlocked and reports their ladder rung', () => {
   assert.equal(s.unlocked, true)
 })
 
+test('a lapsed learner with the paid flags ACTIVATION leaves behind still gets a grace countdown', () => {
+  // The shape functions/subscriptionActivation.js writes. Nothing ever clears
+  // premium / subscriptionStatus / plan at expiry, so every real lapsed
+  // learner looks like this — and the fixture below, with no paid flags, is
+  // a shape activation never produces. graceEndsAt used to be null here.
+  const expiry = new Date(NOW.getTime() - 1 * DAY)
+  const s = resolvePlanState({
+    role: 'learner', isMinor: false,
+    plan: 'premium', premium: true, isPremium: true,
+    paymentStatus: 'active', subscriptionStatus: 'active',
+    subscriptionPlan: 'weekly', subscriptionPaymentId: 'pay_1', subscriptionExpiry: expiry,
+  }, { now: NOW })
+  assert.equal(s.status, PLAN_STATUS.GRACE)
+  assert.equal(s.unlocked, true)
+  assert.equal(s.graceEndsAt?.getTime(), expiry.getTime() + GRACE_DAYS * DAY)
+  assert.equal(planChipLabel(s, NOW), 'Grace · 2 days left')
+})
+
+test('graceEndsAt is null outside grace — active and fully expired plans have nothing to count down', () => {
+  const active = resolvePlanState({ role: 'learner', isMinor: false, premium: true,
+    subscriptionExpiry: new Date(NOW.getTime() + 5 * DAY) }, { now: NOW })
+  assert.equal(active.graceEndsAt, null)
+  const gone = resolvePlanState({ role: 'learner', isMinor: false, premium: true,
+    subscriptionPaymentId: 'pay_1', subscriptionExpiry: new Date(NOW.getTime() - 30 * DAY) }, { now: NOW })
+  assert.equal(gone.status, PLAN_STATUS.EXPIRED)
+  assert.equal(gone.unlocked, false)
+  assert.equal(gone.graceEndsAt, null)
+})
+
 test('ACCEPTANCE 8 — within 3 days of expiry every gated feature stays unlocked', () => {
   const expiry = new Date(NOW.getTime() - 1 * DAY)
   const s = resolvePlanState({

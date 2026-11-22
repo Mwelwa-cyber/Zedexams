@@ -124,4 +124,26 @@ test("buildRevokeFields returns the free-tier reset shape", () => {
   assert.strictEqual(f.subscriptionPaymentId, null);
 });
 
+test("buildRevokeFields clears the lifetime and teacher-tier grants too", () => {
+  // A revoke that leaves either of these behind does not revoke: planState.js
+  // treats subscriptionLifetime as permanently active, and the studio usage
+  // meter reads only teacherPlan / teacherPlanExpiresAt.
+  const f = buildRevokeFields();
+  assert.strictEqual(f.subscriptionLifetime, false);
+  assert.strictEqual(f.teacherPlan, null);
+  assert.strictEqual(f.teacherPlanExpiresAt, null);
+  assert.strictEqual(f.teacherPlanActivatedAt, null);
+});
+
+test("revoke clears every field a grant sets that grants access", () => {
+  // Anything buildActivationFields can set to a truthy access value must be
+  // reset by buildRevokeFields, or some reader keeps the grant alive.
+  const grant = buildActivationFields({planId: "pro_monthly", expiry: new Date(), adminId: "a",
+    provider: "manual_grant", paymentId: "p", lifetime: true});
+  const revoke = buildRevokeFields();
+  for (const key of Object.keys(grant)) {
+    assert.ok(key in revoke, `revoke leaves ${key} as the grant set it`);
+  }
+});
+
 console.log(`\n${passed} passed`);

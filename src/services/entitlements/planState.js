@@ -218,7 +218,13 @@ export function resolvePlanState(profile, opts = {}) {
     plan = 'free'
   }
 
-  const graceEndsAt = !isStaff && !lifetime && expiresAt && !paid
+  // Keyed on the STATUS, not on `!paid`. Nothing clears the paid flags when a
+  // period ends (activation sets premium/subscriptionStatus/plan and no cron
+  // resets them), so every real lapsed learner still reads as `paid` — and a
+  // `!paid` guard here left graceEndsAt null for all of them, which is why the
+  // chip said "Grace" with no countdown and the reminder card and ribbon lost
+  // their day count.
+  const graceEndsAt = status === PLAN_STATUS.GRACE && expiresAt
     ? new Date(expiresAt.getTime() + GRACE_DAYS * MS_PER_DAY)
     : null
 

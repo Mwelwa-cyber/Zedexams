@@ -93,10 +93,24 @@ function buildActivationFields({planId, expiry, adminId, provider, paymentId = n
 
 /**
  * Deterministic user-doc fields for a revoke — drops the account back to
- * the free tier. Mirrors revokePremium in useFirestore.js exactly.
+ * the free tier. Mirrors revokePremium in src/hooks/firestore/adminData.js
+ * exactly.
+ *
+ * It must clear every field that GRANTS access, not only the learner flags,
+ * because each reader trusts a different one:
+ *  - `subscriptionLifetime` — the app's plan state (planState.js) treats it as
+ *    permanently active BEFORE it looks at any paid flag, so a revoked
+ *    lifetime grant stayed fully unlocked;
+ *  - `teacherPlan` / `teacherPlanExpiresAt` — the studio usage meter
+ *    (teacherTools/usageMeter.js) reads only these, so a revoked Pro/Max
+ *    teacher kept their quotas until the original expiry.
  */
 function buildRevokeFields() {
   return {
+    subscriptionLifetime: false,
+    teacherPlan: null,
+    teacherPlanExpiresAt: null,
+    teacherPlanActivatedAt: null,
     plan: "free",
     premium: false,
     isPremium: false,
