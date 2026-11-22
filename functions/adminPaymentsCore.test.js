@@ -132,7 +132,19 @@ test("buildRevokeFields clears the lifetime and teacher-tier grants too", () => 
   assert.strictEqual(f.subscriptionLifetime, false);
   assert.strictEqual(f.teacherPlan, null);
   assert.strictEqual(f.teacherPlanExpiresAt, null);
-  assert.strictEqual(f.teacherPlanActivatedAt, null);
+});
+
+test("revoke KEEPS the paid-history marker, so a revoked teacher cannot claim a fresh trial", () => {
+  // teacherPlanActivatedAt grants nothing; it is what the existing-teacher
+  // trial offer refuses on ("previously-paid"). Clearing it on revoke would
+  // make every revoked Pro/Max teacher trial-eligible again.
+  const f = buildRevokeFields();
+  assert.ok(!("teacherPlanActivatedAt" in f), "revoke must not touch teacherPlanActivatedAt");
+  const {resolveExistingTeacherTrialEligibility} = require("./teacherTrial/teacherTrialCore");
+  const paidThenRevoked = {role: "teacher", teacherPlanActivatedAt: new Date("2026-01-01"), ...f};
+  const eligibility = resolveExistingTeacherTrialEligibility(paidThenRevoked, new Date("2026-11-22"));
+  assert.strictEqual(eligibility.eligible, false);
+  assert.strictEqual(eligibility.reason, "previously-paid");
 });
 
 test("revoke clears every field a grant sets that grants access", () => {

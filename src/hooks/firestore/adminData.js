@@ -527,7 +527,8 @@ export async function revokePremium(userId) {
     subscriptionLifetime: false,
     teacherPlan: null,
     teacherPlanExpiresAt: null,
-    teacherPlanActivatedAt: null,
+    // teacherPlanActivatedAt is kept on purpose: it is the "has paid before"
+    // marker that stops a revoked teacher claiming a fresh trial.
     plan: 'free',
     premium: false,
     isPremium: false,

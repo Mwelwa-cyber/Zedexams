@@ -110,7 +110,10 @@ function buildRevokeFields() {
     subscriptionLifetime: false,
     teacherPlan: null,
     teacherPlanExpiresAt: null,
-    teacherPlanActivatedAt: null,
+    // teacherPlanActivatedAt is deliberately KEPT. It grants nothing — it is
+    // the "has paid before" marker resolveExistingTeacherTrialEligibility
+    // (teacherTrial/teacherTrialCore.js) refuses a trial on. Clearing it here
+    // would hand every revoked Pro/Max teacher a fresh Pro trial.
     plan: "free",
     premium: false,
     isPremium: false,
