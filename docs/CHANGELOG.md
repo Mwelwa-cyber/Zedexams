@@ -5,6 +5,20 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-11-24
+
+### Fixed
+
+- Lapsed plans, admin revokes, grace and trial countdowns, trial reminders (#2827)
+- Clear the open Dependabot alerts except puppeteer's zod (#2825)
+- Cap the three admin agent-ops callables at 2 instances (#2824)
+- Spelling words are spoken in the Android app; diagram editor flags misplaced label boxes (#2823)
+- Patch high-severity DoS advisories in re2js and body-parser (#2822)
+
+### Internal
+
+- Upgrade puppeteer 25.4.0 → 25.18.1 (Chrome 151 → 157) + re-record visual baselines (#2826)
+
 ## 2026-11-22
 
 ### Changed
